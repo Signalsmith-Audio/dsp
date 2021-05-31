@@ -6,6 +6,8 @@ A C++ header-only library, providing classes/templates for (mostly audio) signal
 git clone https://signalsmith-audio.co.uk/code/dsp.git
 ```
 
+It's fairly early in development, so it's far from comprehensive, and APIs might change.
+
 ### Documentation
 
 Docs are on the web: https://signalsmith-audio.co.uk/code/dsp/
