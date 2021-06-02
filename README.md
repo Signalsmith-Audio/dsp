@@ -25,4 +25,4 @@ The goal (where possible) is for the actual audio characteristics of the tools (
 
 ### License
 
-This code is [MIT licensed](LICENSE.txt).
+This code is [MIT licensed](LICENSE.txt).  If you'd prefer something else, get in touch.

@@ -416,53 +416,17 @@ namespace delay {
 		}
 	};
 	
-//	template<typename Sample>
-//	using InterpolatorLagrange3 = InterpolatorLagrangeN<Sample, 3>;
+	template<typename Sample>
+	using InterpolatorLagrange3 = InterpolatorLagrangeN<Sample, 3>;
 	template<typename Sample>
 	using InterpolatorLagrange7 = InterpolatorLagrangeN<Sample, 7>;
 	template<typename Sample>
 	using InterpolatorLagrange19 = InterpolatorLagrangeN<Sample, 19>;
 
-	template<typename Sample>
-	struct InterpolatorLagrange3 {
-		static constexpr int inputLength = 4;
-		static constexpr int latency = 1;
-
-	protected:
-		template<class Data>
-		static Sample fractional(const Data &data, Sample x) {
-			Sample d0 = data[0];
-			Sample forwardFactor = (x + 1);
-			Sample d1 = data[1]*forwardFactor;
-			forwardFactor *= x;
-			Sample d2 = data[2]*forwardFactor;
-			Sample xm1 = (x - 1);
-			forwardFactor *= xm1;
-			Sample d3 = data[3]*forwardFactor;
-
-			Sample backwardsFactor = (x - 2);
-			Sample result = d3*Sample(1.0/6) + d2*backwardsFactor*Sample(1.0/-2);
-			backwardsFactor *= xm1;
-			result += d1*backwardsFactor*Sample(1.0/2);
-			backwardsFactor *= x;
-			result += d0*backwardsFactor*Sample(1.0/-6);
-			return result;
-
-//			Sample a = data[0], b = data[1], c = data[2], d = data[3];
-//
-//			constexpr Sample frac6 = 1/6.0;
-//			Sample frac6_da = frac6*(d - a);
-//			Sample k3 = frac6_da + 0.5*(b - c);
-//			Sample k2 = 0.5*(a + c) - b;
-//			Sample k1 = -0.5*(a + b) + c - frac6_da;
-//			return b + fractional*(k1 + fractional*(k2 + fractional*k3)); // 18 total
-		}
-	};
-	
 	template<typename Sample, int n, bool minimumPhase=false>
 	struct InterpolatorKaiserSincN {
 		static constexpr int inputLength = n;
-		static constexpr Sample latency = minimumPhase ? 1 : (n*Sample(0.5) - 1);
+		static constexpr Sample latency = minimumPhase ? 0 : (n*Sample(0.5) - 1);
 
 		int subSampleSteps;
 		std::vector<Sample> coefficients;
@@ -479,12 +443,6 @@ namespace delay {
 			std::vector<Sample> windowedSinc(subSampleSteps*n + 1);
 			
 			signalsmith::windows::fillKaiserBandwidth(windowedSinc, windowedSinc.size(), kaiserBandwidth, false);
-			if (minimumPhase) {
-				for (size_t i = 0; i < windowedSinc.size(); ++i) {
-//					double r = (i + 0.5)/windowedSinc.size();
-//					windowedSinc[i] = 0.5 - 0.5*std::cos(r*2*M_PI);
-				}
-			}
 
 			for (size_t i = 0; i < windowedSinc.size(); ++i) {
 				double x = (i - centreIndex)*scaleFactor;
@@ -526,9 +484,6 @@ namespace delay {
 				windowedSinc.resize(subSampleSteps*n + 1);
 				for (size_t i = 0; i < windowedSinc.size(); ++i) {
 					windowedSinc[i] = cepstrum[i].real()*scaling;
-////					 Taper off end
-//					double r = (i + 0.5)/windowedSinc.size();
-//					windowedSinc[i] *= 0.5 + 0.5*std::cos(r*M_PI);
 				}
 			}
 			
@@ -583,8 +538,6 @@ namespace delay {
 	class Reader : public Interpolator<Sample> /* so we can get the empty-base-class optimisation */ {
 		using Super = Interpolator<Sample>;
 	public:
-		static constexpr Sample latency = Super::latency;
-
 		Reader () {}
 		/// Pass in a configured interpolator
 		Reader (const Interpolator<Sample> &interpolator) : Super(interpolator) {}

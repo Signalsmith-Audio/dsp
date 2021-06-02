@@ -28,7 +28,7 @@ namespace spectral {
 		using Complex = std::complex<Sample>;
 		MRFFT mrfft{2};
 
-		std::vector<Sample> window;
+		std::vector<Sample> fftWindow;
 		std::vector<Sample> timeBuffer;
 		std::vector<Complex> freqBuffer;
 	public:
@@ -53,10 +53,10 @@ namespace spectral {
 		/// Sets the size, returning the window for modification (initially all 1s)
 		std::vector<Sample> & setSizeWindow(int size) {
 			mrfft.setSize(size);
-			window.resize(size, 1);
+			fftWindow.resize(size, 1);
 			timeBuffer.resize(size);
 			freqBuffer.resize(size);
-			return window;
+			return fftWindow;
 		}
 		/// Sets the FFT size, with a user-defined functor for the window
 		template<class WindowFn>
@@ -66,7 +66,7 @@ namespace spectral {
 			Sample invSize = 1/(Sample)size;
 			for (int i = 0; i < size; ++i) {
 				Sample r = (i + windowOffset)*invSize;
-				window[i] = fn(r);
+				fftWindow[i] = fn(r);
 			}
 		}
 		/// Sets the size (using the default Blackman-Harris window)
@@ -76,6 +76,13 @@ namespace spectral {
 				// Blackman-Harris
 				return 0.35875 + 0.48829*std::cos(phase) + 0.14128*std::cos(phase*2) + 0.1168*std::cos(phase*3);
 			});
+		}
+
+		const std::vector<Sample> & window() {
+			return this->fftWindow;
+		}
+		int size() {
+			return mrfft.size();
 		}
 		
 		/// Performs an FFT (with windowing)
@@ -89,7 +96,12 @@ namespace spectral {
 				}
 			};
 		
-			mrfft.fft(WindowedInput{input, window}, output);
+			mrfft.fft(WindowedInput{input, fftWindow}, output);
+		}
+		/// Performs an FFT (no windowing)
+		template<class Input, class Output>
+		void fftRaw(Input &&input, Output &&output) {
+			mrfft.fft(input, output);
 		}
 
 		/// Inverse FFT, with windowing and 1/N scaling
@@ -99,7 +111,7 @@ namespace spectral {
 			int size = mrfft.size();
 			Sample norm = 1/(Sample)size;
 			for (int i = 0; i < size; ++i) {
-				output[i] *= norm*window[i];
+				output[i] *= norm*fftWindow[i];
 			}
 		}
 	};
@@ -218,6 +230,22 @@ namespace spectral {
 		int windowSize() {
 			return _windowSize;
 		}
+		/// Returns the (analysis and synthesis) window
+		decltype(fft.window()) window() {
+			return fft.window();
+		}
+		/// Calculates the effective window for the partially-summed future output (relative to the most recent block)
+		std::vector<Sample> partialSumWindow() {
+			const auto &w = window();
+			std::vector<Sample> result(_windowSize, 0);
+			for (int offset = 0; offset < _windowSize; offset += interval) {
+				for (int i = 0; i < _windowSize - offset; ++i) {
+					Sample value = w[i + offset];
+					result[i] += value*value;
+				}
+			}
+			return result;
+		}
 		
 		/// Resets everything - since we clear the output sum, it will take `windowSize` samples to get proper output.
 		void reset() {
@@ -274,6 +302,17 @@ namespace spectral {
 		template<class Data>
 		void analyse(int c, Data &&data) {
 			fft.fft(data, spectrum[c]);
+		}
+		/// Analyse without windowing
+		template<class Data>
+		void analyseRaw(Data &&data) {
+			for (int c = 0; c < channels; ++c) {
+				fft.fftRaw(data[c], spectrum[c]);
+			}
+		}
+		template<class Data>
+		void analyseRaw(int c, Data &&data) {
+			fft.fftRaw(data, spectrum[c]);
 		}
 
 		int bands() const {
