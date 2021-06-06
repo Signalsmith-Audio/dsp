@@ -158,7 +158,7 @@ namespace spectral {
 		using Super = signalsmith::delay::MultiBuffer<Sample>;
 		using Complex = std::complex<Sample>;
 
-		int channels = 0, _windowSize = 0, fftSize = 0, interval = 1;
+		int channels = 0, _windowSize = 0, _fftSize = 0, interval = 1;
 		int validUntilIndex = 0;
 		WindowedFFT<Sample> fft;
 
@@ -194,7 +194,7 @@ namespace spectral {
 			
 			this->channels = channels;
 			_windowSize = windowSize;
-			this->fftSize = fftSize;
+			this->_fftSize = fftSize;
 			this->interval = interval;
 			validUntilIndex = -1;
 
@@ -229,6 +229,9 @@ namespace spectral {
 		
 		int windowSize() {
 			return _windowSize;
+		}
+		int fftSize() {
+			return _fftSize;
 		}
 		/// Returns the (analysis and synthesis) window
 		decltype(fft.window()) window() {
@@ -316,7 +319,7 @@ namespace spectral {
 		}
 
 		int bands() const {
-			return fftSize/2;
+			return _fftSize/2;
 		}
 
 		/** Internal latency (between the block-index requested in `.ensureValid()` and its position in the output)

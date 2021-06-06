@@ -1,6 +1,6 @@
 # Signalsmith Audio's DSP Library
 
-A C++ header-only library, providing classes/templates for (mostly audio) signal-processing tasks.
+A C++11 header-only library, providing classes/templates for (mostly audio) signal-processing tasks.
 
 ```
 git clone https://signalsmith-audio.co.uk/code/dsp.git
@@ -20,7 +20,7 @@ Tests (and source-scripts for the above docs) are available in a separate repo:
 git clone https://signalsmith-audio.co.uk/code/dsp-doc.git
 ```
 
-The goal (where possible) is for the actual audio characteristics of the tools (e.g. frequency responses and aliasing levels).
+The goal (where possible) is to measure/test the actual audio characteristics of the tools (e.g. frequency responses and aliasing levels).
 
 
 ### License
