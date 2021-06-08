@@ -1,6 +1,8 @@
 #ifndef SIGNALSMITH_FFT_V5
 #define SIGNALSMITH_FFT_V5
 
+#include "./common.h"
+
 #include <vector>
 #include <complex>
 #include <cmath>

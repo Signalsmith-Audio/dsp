@@ -2,6 +2,7 @@
 #define SIGNALSMITH_DSP_SPECTRAL_H
 
 #include "./common.h"
+
 #include "./fft.h"
 #include "./delay.h"
 
@@ -197,9 +198,15 @@ namespace spectral {
 			this->_fftSize = fftSize;
 			this->interval = interval;
 			validUntilIndex = -1;
+			
+			using Kaiser = ::signalsmith::windows::Kaiser;
 
+			/// Roughly optimal Kaiser for STFT analysis (forced to perfect reconstruction)
 			auto &window = fft.setSizeWindow(fftSize);
-			signalsmith::windows::fillKaiserStft(window, windowSize, interval);
+			auto kaiser = Kaiser::withBandwidth(windowSize/(double)interval, true);
+			kaiser.fill(window, windowSize);
+			::signalsmith::windows::forcePerfectReconstruction(window, windowSize, interval);
+			
 			// TODO: fill extra bits of an input buffer with NaN/Infinity, to break this, and then fix by adding zero-padding to WindowedFFT (as opposed to zero-valued window sections)
 			for (int i = windowSize; i < fftSize; ++i) {
 				window[i] = 0;

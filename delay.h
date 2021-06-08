@@ -1,16 +1,16 @@
 #ifndef SIGNALSMITH_DSP_DELAY_H
 #define SIGNALSMITH_DSP_DELAY_H
 
+#include "./common.h"
+
 #include <vector>
 #include <array>
 #include <cmath> // for std::ceil()
 #include <type_traits>
-#include <iostream> // TODO: remove
-
-#include "./common.h"
 
 #include <complex>
 #include "./fft.h"
+#include "./windows.h"
 
 namespace signalsmith {
 namespace delay {
@@ -442,7 +442,7 @@ namespace delay {
 			double centreIndex = n*subSampleSteps*0.5, scaleFactor = 1.0/subSampleSteps;
 			std::vector<Sample> windowedSinc(subSampleSteps*n + 1);
 			
-			signalsmith::windows::fillKaiserBandwidth(windowedSinc, windowedSinc.size(), kaiserBandwidth, false);
+			::signalsmith::windows::Kaiser::withBandwidth(kaiserBandwidth, false).fill(windowedSinc, windowedSinc.size());
 
 			for (size_t i = 0; i < windowedSinc.size(); ++i) {
 				double x = (i - centreIndex)*scaleFactor;
