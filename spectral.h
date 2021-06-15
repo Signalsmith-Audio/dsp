@@ -127,7 +127,7 @@ namespace spectral {
 		
 		\diagram{stft-buffer-validity.svg}
 		
-		You move the valid index along using `.ensureValid()`, passing in a functor which provides spectra (using `.analyse()` and/or direct modification through `.spectrum(c)`):
+		You move the valid index along using `.ensureValid()`, passing in a functor which provides spectra (using `.analyse()` and/or direct modification through `.spectrum[c]`):
 
 		\code
 			void processSample(...) {
@@ -302,7 +302,7 @@ namespace spectral {
 		
 		/** Analyse a multi-channel input, for any type where `data[channel][index]` returns samples
  
-		Results can be read/edited using `.spectrum()`. */
+		Results can be read/edited using `.spectrum`. */
 		template<class Data>
 		void analyse(Data &&data) {
 			for (int c = 0; c < channels; ++c) {

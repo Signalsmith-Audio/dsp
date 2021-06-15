@@ -69,7 +69,7 @@ namespace windows {
 
 	/**@brief Forces STFT perfect-reconstruction (WOLA) on an existing window by direct calculation.
 	For example, here are perfect-reconstruction versions of the approximately-optimal @ref Kaiser windows:
-	\diagram{kaiser-windows-heuristic-pr.svg,Note the lower overall energy\, and the pointy top for 2x bandwidth}
+	\diagram{kaiser-windows-heuristic-pr.svg,Note the lower overall energy\, and the pointy top for 2x bandwidth. Spectral performance is about the same, though.}
 	*/
 	template<typename Data>
 	void forcePerfectReconstruction(Data &data, int size, int stride) {
