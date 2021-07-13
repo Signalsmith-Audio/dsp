@@ -1,6 +1,7 @@
 #ifndef SIGNALSMITH_DSP_PERF_H
 #define SIGNALSMITH_DSP_PERF_H
 
+#include <complex>
 
 namespace signalsmith {
 namespace perf {
@@ -11,7 +12,7 @@ namespace perf {
 		@file
 	*/
 		
-	/// *Really* insist that a function/method is inlined
+	/// *Really* insist that a function/method is inlined (mostly for performance in DEBUG builds)
 	#ifndef SIGNALSMITH_INLINE
 	#ifdef __GNUC__
 	#define SIGNALSMITH_INLINE __attribute__((always_inline)) inline
@@ -26,7 +27,7 @@ namespace perf {
 		The `std::complex` multiplication has edge-cases around NaNs which slow things down and prevent auto-vectorisation.
 	*/
 	template <bool conjugateSecond=false, typename V>
-	static SIGNALSMITH_INLINE std::complex<V> mul(const std::complex<V> &a, const std::complex<V> &b) {
+	SIGNALSMITH_INLINE static std::complex<V> mul(const std::complex<V> &a, const std::complex<V> &b) {
 		return conjugateSecond ? std::complex<V>{
 			b.real()*a.real() + b.imag()*a.imag(),
 			b.real()*a.imag() - b.imag()*a.real()

@@ -51,6 +51,9 @@ namespace delay {
 		// We shouldn't accidentally copy a delay buffer
 		Buffer(const Buffer &other) = delete;
 		Buffer & operator =(const Buffer &other) = delete;
+		// But moving one is fine
+		Buffer(Buffer &&other) = default;
+		Buffer & operator =(Buffer &&other) = default;
 
 		void resize(int minCapacity, Sample value=Sample()) {
 			int bufferLength = 1;
@@ -430,7 +433,7 @@ namespace delay {
 
 		int subSampleSteps;
 		std::vector<Sample> coefficients;
-
+		
 		InterpolatorKaiserSincN(double bandwidthTarget=0) {
 			subSampleSteps = 2*n; // Heuristic again.  Really it depends on the bandwidth as well.
 			if (bandwidthTarget == 0) {
@@ -616,14 +619,14 @@ namespace delay {
 		struct ChannelView {
 			static constexpr Sample latency = Super::latency;
 
-			Super &reader;
-			typename MultiBuffer<Sample>::ConstChannel &channel;
+			const Super &reader;
+			typename MultiBuffer<Sample>::ConstChannel channel;
 			
 			Sample read(Sample delaySamples) const {
 				return reader.read(channel, delaySamples);
 			}
 		};
-		ChannelView operator [](int channel) {
+		ChannelView operator [](int channel) const {
 			return ChannelView{*this, multiBuffer[channel]};
 		}
 
@@ -641,6 +644,20 @@ namespace delay {
 		DelayView read(Sample delaySamples) {
 			return DelayView{*this, multiBuffer.constView(), delaySamples};
 		}
+		/// Reads into the provided output structure
+		template<class Output>
+		void read(Sample delaySamples, Output &output) {
+			for (int c = 0; c < channels; ++c) {
+				output[c] = Super::read(multiBuffer[c], delaySamples);
+			}
+		}
+		/// Reads separate delays for each channel
+		template<class Delays, class Output>
+		void readMulti(const Delays &delays, Output &output) {
+			for (int c = 0; c < channels; ++c) {
+				output[c] = Super::read(multiBuffer[c], delays[c]);
+			}
+		}
 		template<class Data>
 		void write(const Data &data) {
 			for (int c = 0; c < channels; ++c) {
@@ -654,11 +671,27 @@ namespace delay {
 				multiBuffer[c][0] = data[c];
 			}
 			DelayView result = read(delaySamples);
-			write(data);
+			++multiBuffer;
 			return result;
+		}
+		template<class Data, class Output>
+		void readWrite(const Data &data, Sample delaySamples, Output &output) {
+			for (int c = 0; c < channels; ++c) {
+				multiBuffer[c][0] = data[c];
+			}
+			read(delaySamples, output);
+			++multiBuffer;
+		}
+		template<class Data, class Delays, class Output>
+		void readWriteMulti(const Data &data, const Delays &delays, Output &output) {
+			for (int c = 0; c < channels; ++c) {
+				multiBuffer[c][0] = data[c];
+			}
+			readMulti(delays, output);
+			++multiBuffer;
 		}
 	};
 
 /** @} */
 }} // signalsmith::delay::
-#endif // SIGNALSMITH_DSP_DELAY_H
+#endif // include guard

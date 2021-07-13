@@ -41,17 +41,26 @@ namespace windows {
 		/// Set up a Kaiser window with a given shape.  `beta` is `pi*alpha` (since there is ambiguity about shape parameters)
 		Kaiser(double beta) : beta(beta), invB0(1/bessel0(beta)) {}
 		
-		/** @brief Returns a Kaiser window where the main lobe has the specified bandwidth (as a factor of 1/window-length).
+		/** @brief Returns the Kaiser shape where the main lobe has the specified bandwidth (as a factor of 1/window-length).
 		If `approximateOptimal` is enabled, the main lobe width is _slightly_ wider, following an approximate compromise between total/peak energy ratios on either side of the boundary.
 		\diagram{kaiser-windows-heuristic.svg,Compare this to the diagram at the top\, where the main-lobe ends exactly at the boundary.}
 		*/
-		static Kaiser withBandwidth(double bandwidth, bool approximateOptimal=false) {
+		static double bandwidthToBeta(double bandwidth, bool approximateOptimal=false) {
 			if (approximateOptimal) {
 				// Heuristic based on numerical search
 				bandwidth = bandwidth + 2/(bandwidth*bandwidth); // mostly improves peak/avg, but gives slightly higher peaks for small bandwidth (in exchange for better average case)
 			}
 			double alpha = std::sqrt(bandwidth*bandwidth*0.25 - 1);
-			return Kaiser(alpha*M_PI);
+			return alpha*M_PI;
+		}
+		/** @brief Returns a Kaiser with the appropriate shape (according to `bandwidthToBeta()`). */
+		static double betaToBandwidth(double beta) {
+			double alpha = beta*(1.0/M_PI);
+			return 2*std::sqrt(alpha*alpha + 1);
+		}
+		/** @brief Returns a Kaiser with the appropriate shape (according to `bandwidthToBeta()`). */
+		static Kaiser withBandwidth(double bandwidth, bool approximateOptimal=false) {
+			return Kaiser(bandwidthToBeta(bandwidth, approximateOptimal));
 		}
 
 		/// Fills an arbitrary container with a Kaiser window
@@ -69,7 +78,7 @@ namespace windows {
 
 	/**@brief Forces STFT perfect-reconstruction (WOLA) on an existing window by direct calculation.
 	For example, here are perfect-reconstruction versions of the approximately-optimal @ref Kaiser windows:
-	\diagram{kaiser-windows-heuristic-pr.svg,Note the lower overall energy\, and the pointy top for 2x bandwidth. Spectral performance is about the same, though.}
+	\diagram{kaiser-windows-heuristic-pr.svg,Note the lower overall energy\, and the pointy top for 2x bandwidth. Spectral performance is about the same\, though.}
 	*/
 	template<typename Data>
 	void forcePerfectReconstruction(Data &data, int size, int stride) {

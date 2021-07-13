@@ -2,7 +2,7 @@
 #define SIGNALSMITH_DSP_SPECTRAL_H
 
 #include "./common.h"
-
+#include "./perf.h"
 #include "./fft.h"
 #include "./delay.h"
 
@@ -92,7 +92,7 @@ namespace spectral {
 			struct WindowedInput {
 				const Input &input;
 				std::vector<Sample> &window;
-				Sample operator [](int i) {
+				SIGNALSMITH_INLINE Sample operator [](int i) {
 					return input[i]*window[i];
 				}
 			};
@@ -114,6 +114,11 @@ namespace spectral {
 			for (int i = 0; i < size; ++i) {
 				output[i] *= norm*fftWindow[i];
 			}
+		}
+		/// Performs an IFFT (no windowing)
+		template<class Input, class Output>
+		void ifftRaw(Input &&input, Output &&output) {
+			mrfft.ifft(input, output);
 		}
 	};
 	
@@ -161,42 +166,50 @@ namespace spectral {
 
 		int channels = 0, _windowSize = 0, _fftSize = 0, interval = 1;
 		int validUntilIndex = 0;
-		WindowedFFT<Sample> fft;
 
 		class MultiSpectrum {
 			int channels, stride;
-			std::vector<Complex> spectrumBuffer;
+			std::vector<Complex> buffer;
 		public:
 			MultiSpectrum() : MultiSpectrum(0, 0) {}
-			MultiSpectrum(int channels, int bands) : channels(channels), stride(bands), spectrumBuffer(channels*bands, 0) {}
+			MultiSpectrum(int channels, int bands) : channels(channels), stride(bands), buffer(channels*bands, 0) {}
 			
 			void resize(int channels, int bands) {
 				this->channels = channels;
 				this->stride = bands;
-				spectrumBuffer.assign(channels*bands, 0);
+				buffer.assign(channels*bands, 0);
 			}
 			
 			void reset() {
-				spectrumBuffer.assign(spectrumBuffer.size(), 0);
+				buffer.assign(buffer.size(), 0);
+			}
+			
+			void swap(MultiSpectrum &other) {
+				using std::swap;
+				swap(buffer, other.buffer);
 			}
 
 			Complex * operator [](int channel) {
-				return spectrumBuffer.data() + channel*stride;
+				return buffer.data() + channel*stride;
 			}
 			const Complex * operator [](int channel) const {
-				return spectrumBuffer.data() + channel*stride;
+				return buffer.data() + channel*stride;
 			}
 		};
 		std::vector<Sample> timeBuffer;
 
-		void resizeInternal(int channels, int windowSize, int interval, int historyLength) {
-			Super::resize(channels, windowSize);
+		void resizeInternal(int newChannels, int windowSize, int newInterval, int historyLength) {
+			Super::resize(newChannels,
+				windowSize /* for output summing */
+				+ newInterval /* so we can read `windowSize` ahead (we'll be at most `interval-1` from the most recent block */
+				+ historyLength);
+
 			int fftSize = fft.sizeMinimum(windowSize);
 			
-			this->channels = channels;
+			this->channels = newChannels;
 			_windowSize = windowSize;
 			this->_fftSize = fftSize;
-			this->interval = interval;
+			this->interval = newInterval;
 			validUntilIndex = -1;
 			
 			using Kaiser = ::signalsmith::windows::Kaiser;
@@ -212,16 +225,13 @@ namespace spectral {
 				window[i] = 0;
 			}
 
-			Super::resize(channels,
-				windowSize /* for output summing */
-				+ interval /* so we can read `windowSize` ahead (we'll be at most `interval-1` from the most recent block */
-				+ historyLength);
 			spectrum.resize(channels, fftSize/2);
 			timeBuffer.resize(fftSize);
 		}
 	public:
 		using Spectrum = MultiSpectrum;
 		Spectrum spectrum;
+		WindowedFFT<Sample> fft;
 
 		STFT() {}
 		/// Parameters passed straight to `.resize()`

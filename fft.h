@@ -2,45 +2,50 @@
 #define SIGNALSMITH_FFT_V5
 
 #include "./common.h"
+#include "./perf.h"
 
 #include <vector>
 #include <complex>
 #include <cmath>
 
-#ifndef SIGNALSMITH_INLINE
-#ifdef __GNUC__
-#define SIGNALSMITH_INLINE __attribute__((always_inline)) inline
-#elif defined(__MSVC__)
-#define SIGNALSMITH_INLINE __forceinline inline
-#else
-#define SIGNALSMITH_INLINE inline
-#endif
-#endif
-
 namespace signalsmith {
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	namespace _fft_impl {
+
+		template <typename V>
+		SIGNALSMITH_INLINE V complexReal(const std::complex<V> &c) {
+			return ((V*)(&c))[0];
+		}
+		template <typename V>
+		SIGNALSMITH_INLINE V complexImag(const std::complex<V> &c) {
+			return ((V*)(&c))[1];
+		}
+
 		// Complex multiplication has edge-cases around Inf/NaN - handling those properly makes std::complex non-inlineable, so we use our own
 		template <bool conjugateSecond, typename V>
 		SIGNALSMITH_INLINE std::complex<V> complexMul(const std::complex<V> &a, const std::complex<V> &b) {
+			V aReal = complexReal(a), aImag = complexImag(a);
+			V bReal = complexReal(b), bImag = complexImag(b);
 			return conjugateSecond ? std::complex<V>{
-				b.real()*a.real() + b.imag()*a.imag(),
-				b.real()*a.imag() - b.imag()*a.real()
+				bReal*aReal + bImag*aImag,
+				bReal*aImag - bImag*aReal
 			} : std::complex<V>{
-				a.real()*b.real() - a.imag()*b.imag(),
-				a.real()*b.imag() + a.imag()*b.real()
+				aReal*bReal - aImag*bImag,
+				aReal*bImag + aImag*bReal
 			};
 		}
 
 		template<bool flipped, typename V>
 		SIGNALSMITH_INLINE std::complex<V> complexAddI(const std::complex<V> &a, const std::complex<V> &b) {
+			V aReal = complexReal(a), aImag = complexImag(a);
+			V bReal = complexReal(b), bImag = complexImag(b);
 			return flipped ? std::complex<V>{
-				a.real() + b.imag(),
-				a.imag() - b.real()
+				aReal + bImag,
+				aImag - bReal
 			} : std::complex<V>{
-				a.real() - b.imag(),
-				a.imag() + b.real()
+				aReal - bImag,
+				aImag + bReal
 			};
 		}
 
@@ -209,7 +214,7 @@ namespace signalsmith {
 		}
 
 		template<bool inverse, typename RandomAccessIterator>
-		void fftStep2(RandomAccessIterator &&origData, const Step &step) {
+		SIGNALSMITH_INLINE void fftStep2(RandomAccessIterator &&origData, const Step &step) {
 			const size_t stride = step.innerRepeats;
 			const complex *origTwiddles = twiddleVector.data() + step.twiddleIndex;
 			for (size_t outerRepeat = 0; outerRepeat < step.outerRepeats; ++outerRepeat) {
@@ -227,7 +232,7 @@ namespace signalsmith {
 		}
 
 		template<bool inverse, typename RandomAccessIterator>
-		void fftStep3(RandomAccessIterator &&origData, const Step &step) {
+		SIGNALSMITH_INLINE void fftStep3(RandomAccessIterator &&origData, const Step &step) {
 			constexpr complex factor3 = {-0.5, inverse ? 0.8660254037844386 : -0.8660254037844386};
 			const size_t stride = step.innerRepeats;
 			const complex *origTwiddles = twiddleVector.data() + step.twiddleIndex;
@@ -253,7 +258,7 @@ namespace signalsmith {
 		}
 
 		template<bool inverse, typename RandomAccessIterator>
-		void fftStep4(RandomAccessIterator &&origData, const Step &step) {
+		SIGNALSMITH_INLINE void fftStep4(RandomAccessIterator &&origData, const Step &step) {
 			const size_t stride = step.innerRepeats;
 			const complex *origTwiddles = twiddleVector.data() + step.twiddleIndex;
 			
