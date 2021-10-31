@@ -76,6 +76,11 @@ namespace delay {
 		public:
 			View(CBuffer &buffer, int offset=0) : buffer(&buffer), bufferIndex(buffer.bufferIndex + offset) {}
 			View(const View &other, int offset=0) : buffer(other.buffer), bufferIndex(other.bufferIndex + offset) {}
+			View & operator =(const View &other) {
+				buffer = other.buffer;
+				bufferIndex = other.bufferIndex;
+				return *this;
+			}
 			
 			CSample & operator[](int offset) {
 				return buffer->buffer[(bufferIndex + offset)&buffer->bufferMask];
@@ -217,6 +222,7 @@ namespace delay {
 			int channels, stride;
 		public:
 			Stride(CChannel view, int channels, int stride) : view(view), channels(channels), stride(stride) {}
+			Stride(const Stride &other) : view(other.view), channels(other.channels), stride(other.stride) {}
 			
 			CSample & operator[](int channel) {
 				return view[channel*stride];

@@ -1,5 +1,5 @@
-#ifndef SIGNALSMITH_DSP_SPECTRAL_H
-#define SIGNALSMITH_DSP_SPECTRAL_H
+#ifndef SIGNALSMITH_DSP_FILTERS_H
+#define SIGNALSMITH_DSP_FILTERS_H
 
 #include "./common.h"
 
@@ -17,19 +17,35 @@ namespace filters {
 		@file
 	*/
 	
-	/** A standard biquad - not guaranteed to be stable if modulated at audio rate */
-	template<typename Sample, bool correctBandwidth=false>
+	/** A standard biquad.
+
+		This is not guaranteed to be stable if modulated at audio rate.
+		
+		The default highpass/lowpass bandwidth (1.9) produces a Butterworth filter when bandwidth-compensation is disabled.
+		
+		Bandwidth compensation defaults to `true` for all filter types aside from highpass/lowpass.  When in "cookbook mode", it roughly preserves the ratio between upper/lower boundaries (-3dB point or half-gain).  Otherwise, it exactly preserves the lower boundary.*/
+	template<typename Sample, bool cookbookBandwidth=false>
 	class BiquadStatic {
 		Sample a1 = 0, a2 = 0, b0 = 1, b1 = 0, b2 = 0;
 		Sample x1 = 0, x2 = 0, y1 = 0, y2 = 0;
 		
 		// Straight from the cookbook: https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
 		enum class Type {highpass, lowpass, highShelf, lowShelf, bandpass, bandStop};
-		SIGNALSMITH_INLINE void configure(Type type, double scaledFreq, double octaves, double db=-6) {
-			if (scaledFreq >= 0.499) scaledFreq = 0.499;
+		SIGNALSMITH_INLINE void configure(Type type, double scaledFreq, double octaves, double db, bool correctBandwidth) {
+			scaledFreq = std::max(0.0001, std::min(0.4999, scaledFreq));
 			double w0 = 2*M_PI*scaledFreq;
 			double cos_w0 = std::cos(w0), sin_w0 = std::sin(w0);
-			double alpha = sin_w0*std::sinh(std::log(2)*0.5*octaves*(correctBandwidth ? w0/sin_w0 : 1));
+			if (correctBandwidth) {
+				if (cookbookBandwidth) {
+					// Approximately preserves bandwidth between halfway points
+					octaves *= w0/sin_w0;
+				} else {
+					// Bilinear warps frequencies like tan(pi*x)/pi, so this places the lower boundary in the correct place
+					double lowerRatio = std::pow(2, octaves*-0.5);
+					octaves = 2*std::log2(std::tan(M_PI*scaledFreq)/std::tan(M_PI*scaledFreq*lowerRatio));
+				}
+			}
+			double alpha = sin_w0*std::sinh(std::log(2)*0.5*octaves);
 			double A = std::pow(10, db/40), sqrtA2alpha = std::sqrt(A)*alpha;
 
 			double a0;
@@ -100,24 +116,24 @@ namespace filters {
 			x1 = x2 = y1 = y2 = 0;
 		}
 
-		void highpass(double scaledFreq, double octaves=2) {
-			configure(Type::highpass, scaledFreq, octaves);
+		void highpass(double scaledFreq, double octaves=1.9, bool correctBandwidth=false) {
+			configure(Type::highpass, scaledFreq, octaves, 0, correctBandwidth);
 		}
-		void lowpass(double scaledFreq, double octaves=2) {
-			configure(Type::lowpass, scaledFreq, octaves);
+		void lowpass(double scaledFreq, double octaves=1.9, bool correctBandwidth=false) {
+			configure(Type::lowpass, scaledFreq, octaves, 0, correctBandwidth);
 		}
-		void highShelf(double scaledFreq, double octaves=2, double db=-6) {
-			configure(Type::highShelf, scaledFreq, octaves, db);
+		void bandpass(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
+			configure(Type::bandpass, scaledFreq, octaves, 0, correctBandwidth);
 		}
-		void lowShelf(double scaledFreq, double octaves=2, double db=-6) {
-			configure(Type::lowShelf, scaledFreq, octaves, db);
-		}
-		void bandpass(double scaledFreq, double octaves=1) {
-			configure(Type::bandpass, scaledFreq, octaves);
-		}
-		void bandStop(double scaledFreq, double octaves=1) {
-			configure(Type::bandStop, scaledFreq, octaves);
-		}
+//		void highShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
+//			configure(Type::highShelf, scaledFreq, octaves, db, correctBandwidth);
+//		}
+//		void lowShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
+//			configure(Type::lowShelf, scaledFreq, octaves, db, correctBandwidth);
+//		}
+//		void bandStop(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
+//			configure(Type::bandStop, scaledFreq, octaves, 0, correctBandwidth);
+//		}
 	};
 
 /** @} */
