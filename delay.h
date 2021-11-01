@@ -440,12 +440,11 @@ namespace delay {
 		int subSampleSteps;
 		std::vector<Sample> coefficients;
 		
-		InterpolatorKaiserSincN(double bandwidthTarget=0) {
+		InterpolatorKaiserSincN() : InterpolatorKaiserSincN(0.5 - 0.45/std::sqrt(n)) {}
+		InterpolatorKaiserSincN(double passFreq) : InterpolatorKaiserSincN(passFreq, 1 - passFreq) {}
+		InterpolatorKaiserSincN(double passFreq, double stopFreq) {
 			subSampleSteps = 2*n; // Heuristic again.  Really it depends on the bandwidth as well.
-			if (bandwidthTarget == 0) {
-				bandwidthTarget = 1 - 0.9/std::sqrt(n);
-			}
-			double kaiserBandwidth = (1 - bandwidthTarget)*(n + 1.0/subSampleSteps);
+			double kaiserBandwidth = (stopFreq - passFreq)*(n + 1.0/subSampleSteps);
 			kaiserBandwidth += 1.25/kaiserBandwidth; // We want to place the first zero, but (because using this to window a sinc essentially integrates it in the freq-domain), our ripples (and therefore zeroes) are out of phase.  This is a heuristic fix.
 			
 			double centreIndex = n*subSampleSteps*0.5, scaleFactor = 1.0/subSampleSteps;
