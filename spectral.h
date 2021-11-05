@@ -124,7 +124,7 @@ namespace spectral {
 	
 	/** STFT synthesis/analysis/processing, built on a `MultiBuffer`.
  
-		Any window length and block interval is supported, but the FFT size may be rounded up to a faster size (by zero-padding).  It uses a Kaiser window modified for perfect-reconstruction, with shape chosen for almost-optimal aliasing (band-separation) performance.
+		Any window length and block interval is supported, but the FFT size may be rounded up to a faster size (by zero-padding).  It uses a heuristically-optimal Kaiser window modified for perfect-reconstruction.
 		
 		\diagram{stft-aliasing-simulated.svg,Simulated bad-case aliasing (random phase-shift for each band) for overlapping ratios}
 
