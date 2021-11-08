@@ -20,22 +20,31 @@ namespace windows {
 		
 		Kaiser windows can be constructing using the shape-parameter (beta) or using the static `with???()` methods.*/
 	class Kaiser {
+		// I_0(x)=\sum_{k=0}^{N}\frac{x^{2k}}{(k!)^2\cdot4^k}
 		inline static double bessel0(double x) {
-			constexpr double significanceLimit = 1e-6;
+			const double significanceLimit = 1e-4;
 			double result = 0;
 			double term = 1;
 			double m = 0;
-			while (term  > result*significanceLimit) {
+			while (term > significanceLimit) {
 				result += term;
 				++m;
-				term *= (x*x) / (4*m*m);
+				term *= (x*x)/(4*m*m);
 			}
 
 			return result;
 		}
-		
 		double beta;
 		double invB0;
+		
+		static double heuristicBandwidth(double bandwidth) {
+			// Good peaks
+			//return bandwidth + 8/((bandwidth + 3)*(bandwidth + 3));
+			// Good average
+			//return bandwidth + 14/((bandwidth + 2.5)*(bandwidth + 2.5));
+			// Compromise
+			return bandwidth + 8/((bandwidth + 3)*(bandwidth + 3)) + 0.25*std::max(3 - bandwidth, 0.0);
+		}
 	public:
 		/// Set up a Kaiser window with a given shape.  `beta` is `pi*alpha` (since there is ambiguity about shape parameters)
 		Kaiser(double beta) : beta(beta), invB0(1/bessel0(beta)) {}
@@ -52,12 +61,7 @@ namespace windows {
 		\diagram{kaiser-windows-heuristic.svg, The main lobe extends to ±bandwidth/2.} */
 		static double bandwidthToBeta(double bandwidth, bool heuristicOptimal=false) {
 			if (heuristicOptimal) { // Heuristic based on numerical search
-				// Good peaks
-				//bandwidth += 8/((bandwidth + 3)*(bandwidth + 3));
-				// Good average
-				//bandwidth += 14/((bandwidth + 2.5)*(bandwidth + 2.5));
-				// Compromise
-				bandwidth += 8/((bandwidth + 3)*(bandwidth + 3)) + 0.25*std::max(3 - bandwidth, 0.0);
+				bandwidth = heuristicBandwidth(bandwidth);
 			}
 			bandwidth = std::max(bandwidth, 2.0);
 			double alpha = std::sqrt(bandwidth*bandwidth*0.25 - 1);
@@ -128,6 +132,16 @@ namespace windows {
 			return bw;
 		}
 		/** @} */
+
+		/** Equivalent noise bandwidth (ENBW), a measure of frequency resolution.
+			\diagram{kaiser-bandwidth-enbw.svg,Measured ENBW, with and without the heuristic bandwidth adjustment.}
+			This approximation is accurate to ±0.05 up to a bandwidth of 22.
+		*/
+		static double bandwidthToEnbw(double bandwidth, bool heuristicOptimal=false) {
+			if (heuristicOptimal) bandwidth = heuristicBandwidth(bandwidth);
+			double b2 = std::max<double>(bandwidth - 2, 0);
+			return 1 + b2*(0.2 + b2*(-0.005 + b2*(-0.000005 + b2*0.0000022)));
+		}
 		
 		/// Fills an arbitrary container with a Kaiser window
 		template<typename Data>
