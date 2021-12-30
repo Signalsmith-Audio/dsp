@@ -356,6 +356,8 @@ namespace delay {
 			return data[0];
 		}
 	};
+	/// Linear interpolator
+	/// \diagram{delay-random-access-linear.svg,aliasing and maximum amplitude/delay errors for different input frequencies}
 	template<typename Sample>
 	struct InterpolatorLinear {
 		static constexpr int inputLength = 2;
@@ -368,7 +370,8 @@ namespace delay {
 			return a + fractional*(b - a);
 		}
 	};
-	// Spline cubic
+	/// Spline cubic interpolator
+	/// \diagram{delay-random-access-cubic.svg,aliasing and maximum amplitude/delay errors for different input frequencies}
 	template<typename Sample>
 	struct InterpolatorCubic {
 		static constexpr int inputLength = 4;
@@ -422,6 +425,9 @@ namespace delay {
 			}
 		};
 	}
+	/** Fixed-order Lagrange interpolation.
+	\diagram{interpolator-LagrangeN.svg,aliasing and amplitude/delay errors for different sizes}
+	*/
 	template<typename Sample, int n>
 	struct InterpolatorLagrangeN {
 		static constexpr int inputLength = n + 1;
@@ -460,6 +466,11 @@ namespace delay {
 	template<typename Sample>
 	using InterpolatorLagrange19 = InterpolatorLagrangeN<Sample, 19>;
 
+	/** Fixed-size lagrange interpolation.
+	\diagram{interpolator-KaiserSincN.svg,aliasing and amplitude/delay errors for different sizes}
+	If `minimumPhase` is enabled, a minimum-phase version of the kernel is used:
+	\diagram{interpolator-KaiserSincN-min.svg,aliasing and amplitude/delay errors for minimum-phase mode}
+	*/
 	template<typename Sample, int n, bool minimumPhase=false>
 	struct InterpolatorKaiserSincN {
 		static constexpr int inputLength = n;
