@@ -31,7 +31,7 @@ namespace filters {
 		
 		// Straight from the cookbook: https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
 		enum class Type {highpass, lowpass, highShelf, lowShelf, bandpass, bandStop};
-		SIGNALSMITH_INLINE void configure(Type type, double scaledFreq, double octaves, double db, bool correctBandwidth) {
+		SIGNALSMITH_INLINE void configure(Type type, double scaledFreq, double octaves, double sqrtGain, bool correctBandwidth) {
 			scaledFreq = std::max(0.0001, std::min(0.4999, scaledFreq));
 			double w0 = 2*M_PI*scaledFreq;
 			double cos_w0 = std::cos(w0), sin_w0 = std::sin(w0);
@@ -46,7 +46,7 @@ namespace filters {
 				}
 			}
 			double alpha = sin_w0*std::sinh(std::log(2)*0.5*octaves);
-			double A = std::pow(10, db/40), sqrtA2alpha = std::sqrt(A)*alpha;
+			double A = sqrtGain, sqrtA2alpha = std::sqrt(A)*alpha;
 
 			double a0;
 			if (type == Type::highpass) {
@@ -125,11 +125,19 @@ namespace filters {
 		void bandpass(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
 			configure(Type::bandpass, scaledFreq, octaves, 0, correctBandwidth);
 		}
+		void highShelf(double scaledFreq, double gain, double octaves=2, bool correctBandwidth=true) {
+			configure(Type::highShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth);
+		}
+		void lowShelf(double scaledFreq, double gain, double octaves=2, bool correctBandwidth=true) {
+			configure(Type::lowShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth);
+		}
 //		void highShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
-//			configure(Type::highShelf, scaledFreq, octaves, db, correctBandwidth);
+//			double sqrtGain = std::pow(10, db*0.025);
+//			configure(Type::highShelf, scaledFreq, octaves, sqrtGain, correctBandwidth);
 //		}
 //		void lowShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
-//			configure(Type::lowShelf, scaledFreq, octaves, db, correctBandwidth);
+//			double sqrtGain = std::pow(10, db*0.025);
+//			configure(Type::lowShelf, scaledFreq, octaves, sqrtGain, correctBandwidth);
 //		}
 //		void bandStop(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
 //			configure(Type::bandStop, scaledFreq, octaves, 0, correctBandwidth);

@@ -204,8 +204,8 @@ namespace delay {
 
 		MultiBuffer(int channels=0, int capacity=0) : channels(channels), stride(capacity), buffer(channels*capacity) {}
 
-		void resize(int channels, int capacity, Sample value=Sample()) {
-			this->channels = channels;
+		void resize(int nChannels, int capacity, Sample value=Sample()) {
+			channels = nChannels;
 			stride = capacity;
 			buffer.resize(channels*capacity, value);
 		}
@@ -392,7 +392,7 @@ namespace delay {
 		static constexpr int latency = (n - 1)/2;
 
 		std::array<Sample, (n + 1)> invDivisors;
-		
+
 		InterpolatorLagrangeN() {
 			for (int j = 0; j <= n; ++j) {
 				double divisor = 1;
@@ -401,11 +401,11 @@ namespace delay {
 				invDivisors[j] = 1/divisor;
 			}
 		}
-		
+
 		template<class Data>
 		Sample fractional(const Data &data, Sample fractional) const {
 			std::array<Sample, (n + 1)> sums;
-			
+
 			Sample x = fractional + latency;
 
 			Sample forwardFactor = 1;
@@ -414,7 +414,7 @@ namespace delay {
 				forwardFactor *= x - (i - 1);
 				sums[i] = forwardFactor*data[i];
 			}
-			
+
 			Sample backwardsFactor = 1;
 			Sample result = sums[n]*invDivisors[n];
 			for (int i = n - 1; i >= 0; --i) {
@@ -424,7 +424,7 @@ namespace delay {
 			return result;
 		}
 	};
-	
+
 	template<typename Sample>
 	using InterpolatorLagrange3 = InterpolatorLagrangeN<Sample, 3>;
 	template<typename Sample>
@@ -615,8 +615,8 @@ namespace delay {
 		void reset(Sample value=Sample()) {
 			multiBuffer.reset(value);
 		}
-		void resize(int channels, int capacity, Sample value=Sample()) {
-			this->channels = channels;
+		void resize(int nChannels, int capacity, Sample value=Sample()) {
+			channels = nChannels;
 			multiBuffer.resize(channels, capacity + Super::inputLength, value);
 		}
 		

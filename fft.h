@@ -137,15 +137,15 @@ namespace signalsmith {
 		}
 		void setPlan() {
 			factors.resize(0);
-			size_t size = _size, f = 2;
+			size_t size = _size, factor = 2;
 			while (size > 1) {
-				if (size%f == 0) {
-					factors.push_back(f);
-					size /= f;
-				} else if (f > sqrt(size)) {
-					f = size;
+				if (size%factor == 0) {
+					factors.push_back(factor);
+					size /= factor;
+				} else if (factor > sqrt(size)) {
+					factor = size;
 				} else {
-					++f;
+					++factor;
 				}
 			}
 
@@ -201,8 +201,8 @@ namespace signalsmith {
 						complex sum = working[0];
 						for (size_t i = 1; i < factor; ++i) {
 							V phase = 2*M_PI*f*i/factor;
-							complex factor = {std::cos(phase), -std::sin(phase)};
-							sum += _fft_impl::complexMul<inverse>(working[i], factor);
+							complex twiddle = {std::cos(phase), -std::sin(phase)};
+							sum += _fft_impl::complexMul<inverse>(working[i], twiddle);
 						}
 						data[f*stride] = sum;
 					}
