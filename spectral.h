@@ -79,10 +79,10 @@ namespace spectral {
 			});
 		}
 
-		const std::vector<Sample> & window() {
+		const std::vector<Sample> & window() const {
 			return this->fftWindow;
 		}
-		int size() {
+		int size() const {
 			return mrfft.size();
 		}
 		
@@ -124,7 +124,7 @@ namespace spectral {
 	
 	/** STFT synthesis/analysis/processing, built on a `MultiBuffer`.
  
-		Any window length and block interval is supported, but the FFT size may be rounded up to a faster size (by zero-padding).  It uses a Kaiser window modified for perfect-reconstruction, with shape chosen for almost-optimal aliasing (band-separation) performance.
+		Any window length and block interval is supported, but the FFT size may be rounded up to a faster size (by zero-padding).  It uses a heuristically-optimal Kaiser window modified for perfect-reconstruction.
 		
 		\diagram{stft-aliasing-simulated.svg,Simulated bad-case aliasing (random phase-shift for each band) for overlapping ratios}
 
@@ -164,7 +164,7 @@ namespace spectral {
 		using Super = signalsmith::delay::MultiBuffer<Sample>;
 		using Complex = std::complex<Sample>;
 
-		int channels = 0, _windowSize = 0, _fftSize = 0, interval = 1;
+		int channels = 0, _windowSize = 0, _fftSize = 0, _interval = 1;
 		int validUntilIndex = 0;
 
 		class MultiSpectrum {
@@ -209,16 +209,16 @@ namespace spectral {
 			this->channels = newChannels;
 			_windowSize = windowSize;
 			this->_fftSize = fftSize;
-			this->interval = newInterval;
+			this->_interval = newInterval;
 			validUntilIndex = -1;
 			
 			using Kaiser = ::signalsmith::windows::Kaiser;
 
 			/// Roughly optimal Kaiser for STFT analysis (forced to perfect reconstruction)
 			auto &window = fft.setSizeWindow(fftSize);
-			auto kaiser = Kaiser::withBandwidth(windowSize/(double)interval, true);
+			auto kaiser = Kaiser::withBandwidth(windowSize/(double)_interval, true);
 			kaiser.fill(window, windowSize);
-			::signalsmith::windows::forcePerfectReconstruction(window, windowSize, interval);
+			::signalsmith::windows::forcePerfectReconstruction(window, windowSize, _interval);
 			
 			// TODO: fill extra bits of an input buffer with NaN/Infinity, to break this, and then fix by adding zero-padding to WindowedFFT (as opposed to zero-valued window sections)
 			for (int i = windowSize; i < fftSize; ++i) {
@@ -244,21 +244,24 @@ namespace spectral {
 			resizeInternal(channels, windowSize, interval, historyLength);
 		}
 		
-		int windowSize() {
+		int windowSize() const {
 			return _windowSize;
 		}
-		int fftSize() {
+		int fftSize() const {
 			return _fftSize;
 		}
+		int interval() const {
+			return _interval;
+		}
 		/// Returns the (analysis and synthesis) window
-		decltype(fft.window()) window() {
+		decltype(fft.window()) window() const {
 			return fft.window();
 		}
 		/// Calculates the effective window for the partially-summed future output (relative to the most recent block)
-		std::vector<Sample> partialSumWindow() {
+		std::vector<Sample> partialSumWindow() const {
 			const auto &w = window();
 			std::vector<Sample> result(_windowSize, 0);
-			for (int offset = 0; offset < _windowSize; offset += interval) {
+			for (int offset = 0; offset < _windowSize; offset += _interval) {
 				for (int i = 0; i < _windowSize - offset; ++i) {
 					Sample value = w[i + offset];
 					result[i] += value*value;
@@ -291,7 +294,7 @@ namespace spectral {
 					auto channel = output[c];
 
 					// Clear out the future sum, a window-length and an interval ahead
-					for (int i = _windowSize; i < _windowSize + interval; ++i) {
+					for (int i = _windowSize; i < _windowSize + _interval; ++i) {
 						channel[i] = 0;
 					}
 
@@ -301,7 +304,7 @@ namespace spectral {
 						channel[i] += timeBuffer[i];
 					}
 				}
-				validUntilIndex += interval;
+				validUntilIndex += _interval;
 			}
 		}
 		/// The same as above, assuming index 0
