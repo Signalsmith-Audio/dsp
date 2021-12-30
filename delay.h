@@ -386,12 +386,49 @@ namespace delay {
 			return b + fractional*(k1 + fractional*(k2 + fractional*k3)); // 16 ops total, not including the indexing
 		}
 	};
+
+	// Efficient Algorithms and Structures for Fractional Delay Filtering Based on Lagrange Interpolation
+	// Franck 2009 https://www.aes.org/e-lib/browse.cfm?elib=14647
+	namespace _franck_impl {
+		template<typename Sample, int n, int low, int high>
+		struct ProductRange {
+			using Array = std::array<Sample, (n + 1)>;
+			static constexpr int mid = (low + high)/2;
+			using Left = ProductRange<Sample, n, low, mid>;
+			using Right = ProductRange<Sample, n, mid + 1, high>;
+
+			Left left;
+			Right right;
+
+			const Sample total;
+			ProductRange(Sample x) : left(x), right(x), total(left.total*right.total) {}
+
+			template<class Data>
+			Sample calculateResult(Sample extraFactor, const Data &data, const Array &invFactors) {
+				return left.calculateResult(extraFactor*right.total, data, invFactors)
+					+ right.calculateResult(extraFactor*left.total, data, invFactors);
+			}
+		};
+		template<typename Sample, int n, int index>
+		struct ProductRange<Sample, n, index, index> {
+			using Array = std::array<Sample, (n + 1)>;
+
+			const Sample total;
+			ProductRange(Sample x) : total(x - index) {}
+
+			template<class Data>
+			Sample calculateResult(Sample extraFactor, const Data &data, const Array &invFactors) {
+				return extraFactor*data[index]*invFactors[index];
+			}
+		};
+	}
 	template<typename Sample, int n>
 	struct InterpolatorLagrangeN {
 		static constexpr int inputLength = n + 1;
 		static constexpr int latency = (n - 1)/2;
 
-		std::array<Sample, (n + 1)> invDivisors;
+		using Array = std::array<Sample, (n + 1)>;
+		Array invDivisors;
 
 		InterpolatorLagrangeN() {
 			for (int j = 0; j <= n; ++j) {
@@ -404,27 +441,18 @@ namespace delay {
 
 		template<class Data>
 		Sample fractional(const Data &data, Sample fractional) const {
-			std::array<Sample, (n + 1)> sums;
+			constexpr int mid = n/2;
+			using Left = _franck_impl::ProductRange<Sample, n, 0, mid>;
+			using Right = _franck_impl::ProductRange<Sample, n, mid + 1, n>;
 
 			Sample x = fractional + latency;
 
-			Sample forwardFactor = 1;
-			sums[0] = data[0];
-			for (int i = 1; i <= n; ++i) {
-				forwardFactor *= x - (i - 1);
-				sums[i] = forwardFactor*data[i];
-			}
+			Left left(x);
+			Right right(x);
 
-			Sample backwardsFactor = 1;
-			Sample result = sums[n]*invDivisors[n];
-			for (int i = n - 1; i >= 0; --i) {
-				backwardsFactor *= x - (i + 1);
-				result += sums[i]*invDivisors[i]*backwardsFactor;
-			}
-			return result;
+			return left.calculateResult(right.total, data, invDivisors) + right.calculateResult(left.total, data, invDivisors);
 		}
 	};
-
 	template<typename Sample>
 	using InterpolatorLagrange3 = InterpolatorLagrangeN<Sample, 3>;
 	template<typename Sample>
