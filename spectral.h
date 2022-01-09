@@ -25,7 +25,7 @@ namespace spectral {
 	 */
 	template<typename Sample>
 	class WindowedFFT {
-		using MRFFT = signalsmith::ModifiedRealFFT<Sample>;
+		using MRFFT = signalsmith::fft::ModifiedRealFFT<Sample>;
 		using Complex = std::complex<Sample>;
 		MRFFT mrfft{2};
 

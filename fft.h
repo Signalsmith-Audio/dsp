@@ -8,9 +8,8 @@
 #include <complex>
 #include <cmath>
 
-namespace signalsmith {
+namespace signalsmith { namespace fft {
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 	namespace _fft_impl {
 
 		template <typename V>
@@ -63,7 +62,6 @@ namespace signalsmith {
 			}
 		};
 	}
-#endif
 
 	template<typename V>
 	class FFT {
@@ -119,8 +117,8 @@ namespace signalsmith {
 			if (!foundStep) {
 				for (size_t i = 0; i < subLength; ++i) {
 					for (size_t f = 0; f < factor; ++f) {
-						V phase = 2*M_PI*i*f/length;
-						complex twiddle = {std::cos(phase), -std::sin(phase)};
+						double phase = 2*M_PI*i*f/length;
+						complex twiddle = {V(std::cos(phase)), V(-std::sin(phase))};
 						twiddleVector.push_back(twiddle);
 					}
 				}
@@ -200,8 +198,8 @@ namespace signalsmith {
 					for (size_t f = 0; f < factor; ++f) {
 						complex sum = working[0];
 						for (size_t i = 1; i < factor; ++i) {
-							V phase = 2*M_PI*f*i/factor;
-							complex twiddle = {std::cos(phase), -std::sin(phase)};
+							double phase = 2*M_PI*f*i/factor;
+							complex twiddle = {V(std::cos(phase)), V(-std::sin(phase))};
 							sum += _fft_impl::complexMul<inverse>(working[i], twiddle);
 						}
 						data[f*stride] = sum;
@@ -505,7 +503,6 @@ namespace signalsmith {
 	struct ModifiedRealFFT : public RealFFT<V, FFTOptions::halfFreqShift> {
 		using RealFFT<V, FFTOptions::halfFreqShift>::RealFFT;
 	};
-}
 
-#undef SIGNALSMITH_FFT_NAMESPACE
-#endif // SIGNALSMITH_FFT_V5
+}} // namespace
+#endif // include guard

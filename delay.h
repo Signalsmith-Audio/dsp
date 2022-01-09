@@ -504,7 +504,7 @@ namespace delay {
 			}
 			
 			if (minimumPhase) {
-				signalsmith::FFT<Sample> fft(windowedSinc.size()*2, 1);
+				signalsmith::fft::FFT<Sample> fft(windowedSinc.size()*2, 1);
 				windowedSinc.resize(fft.size(), 0);
 				std::vector<std::complex<Sample>> spectrum(fft.size());
 				std::vector<std::complex<Sample>> cepstrum(fft.size());
