@@ -34,12 +34,12 @@ namespace spectral {
 		std::vector<Complex> freqBuffer;
 	public:
 		/// Returns a fast FFT size <= `size`
-		static int sizeMaximum(int size, int divisor=1) {
-			return MRFFT::sizeMinimum(size/divisor)*divisor;
+		static int fastSizeAbove(int size, int divisor=1) {
+			return MRFFT::fastSizeAbove(size/divisor)*divisor;
 		}
 		/// Returns a fast FFT size >= `size`
-		static int sizeMinimum(int size, int divisor=1) {
-			return MRFFT::sizeMinimum(1 + (size - 1)/divisor)*divisor;
+		static int fastSizeBelow(int size, int divisor=1) {
+			return MRFFT::fastSizeBelow(1 + (size - 1)/divisor)*divisor;
 		}
 
 		WindowedFFT() {}
@@ -204,7 +204,7 @@ namespace spectral {
 				+ newInterval /* so we can read `windowSize` ahead (we'll be at most `interval-1` from the most recent block */
 				+ historyLength);
 
-			int fftSize = fft.sizeMinimum(windowSize);
+			int fftSize = fft.fastSizeAbove(windowSize);
 			
 			this->channels = newChannels;
 			_windowSize = windowSize;

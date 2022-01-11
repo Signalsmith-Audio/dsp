@@ -9,6 +9,12 @@
 #include <cmath>
 
 namespace signalsmith { namespace fft {
+	/**	@defgroup FFT
+		@brief Fourier transforms (complex and real)
+
+		@{
+		@file
+	*/
 
 	namespace _fft_impl {
 
@@ -63,7 +69,12 @@ namespace signalsmith { namespace fft {
 		};
 	}
 
-	template<typename V>
+	/** Floating-point FFT implementation.
+	It is fast for 2^a * 3^b.
+	Here are the peak and RMS errors for `float`/`double` computation:
+	\diagram{fft-errors.svg Simulated errors for pure-tone harmonic inputs\, compared to a theoretical upper bound from "Roundoff error analysis of the fast Fourier transform" (G. Ramos, 1971)}
+	*/
+	template<typename V=double>
 	class FFT {
 		using complex = std::complex<V>;
 		size_t _size;
@@ -321,7 +332,7 @@ namespace signalsmith { namespace fft {
 			return filter[size];
 		}
 	public:
-		static size_t sizeMinimum(size_t size) {
+		static size_t fastSizeAbove(size_t size) {
 			size_t power2 = 1;
 			while (size >= 32) {
 				size = (size - 1)/2 + 1;
@@ -332,7 +343,7 @@ namespace signalsmith { namespace fft {
 			}
 			return power2*size;
 		}
-		static size_t sizeMaximum(size_t size) {
+		static size_t fastSizeBelow(size_t size) {
 			size_t power2 = 1;
 			while (size >= 32) {
 				size /= 2;
@@ -345,8 +356,8 @@ namespace signalsmith { namespace fft {
 		}
 
 		FFT(size_t size, int fastDirection=0) : _size(0) {
-			if (fastDirection > 0) size = sizeMinimum(size);
-			if (fastDirection < 0) size = sizeMaximum(size);
+			if (fastDirection > 0) size = fastSizeAbove(size);
+			if (fastDirection < 0) size = fastSizeBelow(size);
 			this->setSize(size);
 		}
 
@@ -358,11 +369,11 @@ namespace signalsmith { namespace fft {
 			}
 			return _size;
 		}
-		size_t setSizeMinimum(size_t size) {
-			return setSize(sizeMinimum(size));
+		size_t setFastSizeAbove(size_t size) {
+			return setSize(fastSizeAbove(size));
 		}
-		size_t setSizeMaximum(size_t size) {
-			return setSize(sizeMaximum(size));
+		size_t setFastSizeBelow(size_t size) {
+			return setSize(fastSizeBelow(size));
 		}
 		const size_t & size() const {
 			return _size;
@@ -397,17 +408,17 @@ namespace signalsmith { namespace fft {
 		std::vector<complex> modifiedRotations;
 		FFT<V> complexFft;
 	public:
-		static size_t sizeMinimum(size_t size) {
-			return FFT<V>::sizeMinimum((size + 1)/2)*2;
+		static size_t fastSizeAbove(size_t size) {
+			return FFT<V>::fastSizeAbove((size + 1)/2)*2;
 		}
-		static size_t sizeMaximum(size_t size) {
-			return FFT<V>::sizeMaximum(size/2)*2;
+		static size_t fastSizeBelow(size_t size) {
+			return FFT<V>::fastSizeBelow(size/2)*2;
 		}
 
 		RealFFT(size_t size=0, int fastDirection=0) : complexFft(0) {
-			if (fastDirection > 0) size = sizeMinimum(size);
-			if (fastDirection < 0) size = sizeMaximum(size);
-			this->setSize(size);
+			if (fastDirection > 0) size = fastSizeAbove(size);
+			if (fastDirection < 0) size = fastSizeBelow(size);
+			this->setSize(std::max<size_t>(size, 2));
 		}
 
 		size_t setSize(size_t size) {
@@ -430,11 +441,11 @@ namespace signalsmith { namespace fft {
 			
 			return complexFft.setSize(size/2);
 		}
-		size_t setSizeMinimum(size_t size) {
-			return setSize(sizeMinimum(size));
+		size_t setFastSizeAbove(size_t size) {
+			return setSize(fastSizeAbove(size));
 		}
-		size_t setSizeMaximum(size_t size) {
-			return setSize(sizeMaximum(size));
+		size_t setFastSizeBelow(size_t size) {
+			return setSize(fastSizeBelow(size));
 		}
 		size_t size() const {
 			return complexFft.size()*2;
@@ -504,5 +515,6 @@ namespace signalsmith { namespace fft {
 		using RealFFT<V, FFTOptions::halfFreqShift>::RealFFT;
 	};
 
+/// @}
 }} // namespace
 #endif // include guard
