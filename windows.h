@@ -142,7 +142,14 @@ namespace windows {
 			double b2 = std::max<double>(bandwidth - 2, 0);
 			return 1 + b2*(0.2 + b2*(-0.005 + b2*(-0.000005 + b2*0.0000022)));
 		}
-		
+
+		/// Return the window's value for position in the range [0, 1]
+		double operator ()(double unit) {
+			double r = 2*unit - 1;
+			double arg = std::sqrt(1 - r*r);
+			return bessel0(beta*arg)*invB0;
+		}
+	
 		/// Fills an arbitrary container with a Kaiser window
 		template<typename Data>
 		void fill(Data &data, int size) const {
