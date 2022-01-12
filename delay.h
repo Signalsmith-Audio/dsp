@@ -529,6 +529,7 @@ namespace delay {
 				}
 				fft.ifft(spectrum, cepstrum);
 				windowedSinc.resize(subSampleSteps*n + 1);
+				windowedSinc.shrink_to_fit();
 				for (size_t i = 0; i < windowedSinc.size(); ++i) {
 					windowedSinc[i] = cepstrum[i].real()*scaling;
 				}
