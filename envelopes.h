@@ -15,13 +15,13 @@ namespace envelopes {
 		@file
 	*/
 	
-	/**	A cheap vaguely-sine-like LFO with random speed variation.
-		
-		Currently based on a cubic polynomial, but may change in future.
-		
-		It supports random variation in the rate, and the depth.  It will always remain bounded by the limits you specify (once it updates) so randomising the depth will produce smaller oscillations on average.
+	/**	An LFO based on cubic segments.
+		You can randomise the rate and/or the depth.  Randomising the depth past `0.5` means it no longer neatly alternates sides:
+			\diagram{cubic-lfo-example.svg,Some example LFO curves.}
+		Without randomisation, it is approximately sine-like:
+			\diagram{cubic-lfo-spectrum-pure.svg}
 	*/
-	class CheapLfo {
+	class CubicLfo {
 		float ratio = 0;
 		float ratioStep = 0;
 		
@@ -48,11 +48,15 @@ namespace envelopes {
 			}
 		}
 	public:
-		CheapLfo() : randomEngine(std::random_device()()), randomUnit(0, 1) {
+		CubicLfo() : randomEngine(std::random_device()()), randomUnit(0, 1) {
+			reset();
+		}
+		CubicLfo(long seed) : randomUnit(0, 1) {
+			randomEngine.seed(seed);
 			reset();
 		}
 
-		/// Resets the LFO state, with random phase.
+		/// Resets the LFO state, starting with random phase.
 		void reset() {
 			ratio = random();
 			ratioStep = randomRate();
@@ -68,17 +72,21 @@ namespace envelopes {
 		}
 		/** Smoothly updates the LFO parameters.
 
-		If called directly after `.reset()`, oscillation will immediately start within the specified range.  Otherwise, it will follow the new parameters after at most one cycle.
+		If called directly after `.reset()`, oscillation will immediately start within the specified range.  Otherwise, it will remain smooth and fit within the new range after at most one cycle:
+			\diagram{cubic-lfo-changes.svg}
 
-		The LFO will complete a full oscillation in (approximately) `1/rate` samples.  `rateVariation` can be any number, but 0-1 is a good range.  `depthVariation` must be in [0, 1], where 0.5 has random amplitude but still alternates up/down.
+		The LFO will complete a full oscillation in (approximately) `1/rate` samples.  `rateVariation` can be any number, but 0-1 is a good range.
+		
+		`depthVariation` must be in the [0, 1], where ≤ 0.5 produces random amplitude but still alternates up/down.
+			\diagram{cubic-lfo-spectrum.svg,Spectra for the two types of randomisation - note the jump as depth variation goes past 50%}
 		*/
-		void set(float low, float high, float rate, float rateVariation=0.5, float depthVariation=0) {
+		void set(float low, float high, float rate, float rateVariation=0, float depthVariation=0) {
 			rate *= 2; // We want to go up and down during this period
 			targetRate = rate;
 			targetLow = std::min(low, high);
 			targetHigh = std::max(low, high);
 			rateRandom = rateVariation;
-			depthRandom = depthVariation;
+			depthRandom = std::min<float>(1, std::max<float>(0, depthVariation));
 			
 			// If we haven't called .next() yet, don't bother being smooth.
 			if (freshReset) return reset();
@@ -90,14 +98,14 @@ namespace envelopes {
 			}
 		}
 		
-		/// get the next output sample
+		/// Returns the next output sample
 		float next() {
 			freshReset = false;
 			float result = ratio*ratio*(3 - 2*ratio)*valueRange + valueFrom;
 
 			ratio += ratioStep;
-			if (ratio >= 1) {
-				ratio = 0;
+			while (ratio >= 1) {
+				ratio -= 1;
 				ratioStep = randomRate();
 				valueFrom = valueTo;
 				valueTo = randomTarget(valueFrom);

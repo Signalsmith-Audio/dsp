@@ -9,7 +9,7 @@
 #include <cmath>
 
 namespace signalsmith { namespace fft {
-	/**	@defgroup FFT
+	/**	@defgroup FFT FFT (complex and real)
 		@brief Fourier transforms (complex and real)
 
 		@{
