@@ -174,21 +174,21 @@ namespace envelopes {
 		}
 	};
 	
-	/** Variable-width rectangular moving average */
+	/** Rectangular moving average filter */
 	template<typename Sample=double>
-	class BoxAverage : private BoxSum<Sample> {
-		using Super = BoxSum<Sample>;
+	class BoxFilter {
+		BoxSum<Sample> boxSum;
 		int _size, _maxSize;
 		Sample multiplier;
 	public:
-		BoxAverage(int maxSize) : Super(maxSize) {
+		BoxFilter(int maxSize) : boxSum(maxSize) {
 			resize(maxSize);
 			set(maxSize);
 		}
 		/// Sets the maximum size (and reset contents)
 		void resize(int maxSize) {
 			_maxSize = maxSize;
-			Super::resize(maxSize);
+			boxSum.resize(maxSize);
 			if (maxSize < _size) set(maxSize);
 		}
 		/// Sets the current size (expanding size if needed)
@@ -199,13 +199,101 @@ namespace envelopes {
 		}
 		
 		/// Resets (with an optional "fill" value)
-		using Super::reset;
-		using Super::write;
-		Sample read() {
-			return Super::read(_size)*multiplier;
+		void reset(Sample fill=Sample()) {
+			boxSum.reset(fill);
 		}
-		Sample readWrite(Sample v) {
-			return Super::readWrite(v, _size)*multiplier;
+		
+		Sample operator()(Sample v) {
+			return boxSum.readWrite(v, _size)*multiplier;
+		}
+	};
+
+	/** FIR filter made from a stack of `BoxFilter`s.
+		This filter has a non-negative impulse (monotonic step response), making it useful for smoothing positive-only values.  The internal box-lengths are chosen to minimse peaks in the stop-band.
+		\diagram{box-stack-long.svg,Impulse responses for various stack sizes at length N=1000}
+		Since the box-averages must have integer width, it's less accurate for shorter lengths:
+		\diagram{box-stack-short-freq.svg,Frequency responses for various stack sizes at length N=30}
+	*/
+	template<typename Sample=double>
+	class BoxStackFilter {
+		struct Layer {
+			double ratio = 0;
+			int length = 0;
+			BoxFilter<Sample> filter{0};
+			Layer() {}
+		};
+		int _size;
+		std::vector<Layer> layers;
+		void setupLayers(int layerCount) {
+			layers.resize(layerCount, Layer{});
+			double invN = 1.0/layerCount, sqrtN = std::sqrt(layerCount);
+			double p = 1 - invN;
+			double k = 1 + 4.5/sqrtN + 0.08*sqrtN;
+
+			double sum = 0;
+			for (int i = 0; i < layerCount; ++i) {
+				double x = i*invN;
+				double power = -x*(1 - p*std::exp(-x*k));
+				double length = std::pow(2, power);
+				layers[i].ratio = length;
+				sum += length;
+			}
+			double factor = 1/sum;
+			for (auto &layer : layers) layer.ratio *= factor;
+		}
+	public:
+		BoxStackFilter(int maxSize, int layers=4) {
+			resize(maxSize, layers);
+			set(maxSize);
+		}
+		
+		/// Approximate bandwidth for a given number of layers
+		static constexpr double layersToBandwidth(int layers) {
+			return 1.58*(layers + 0.1);
+		}
+		/// Approximate peak in the stop-band
+		static constexpr double layersToPeakDb(int layers) {
+			return 5 - layers*18;
+		}
+		
+		void resize(int maxSize, int layerCount) {
+			if (int(layers.size()) != layerCount) setupLayers(layerCount);
+			for (auto &layer : layers) {
+				layer.filter.resize(int(maxSize*layer.ratio + 2));
+			}
+			if (maxSize < _size) set(maxSize);
+		}
+		
+		/// Configures so that the impulse response is `size` samples long.
+		void set(int size) {
+			if (_size == size) return;
+			_size = size;
+			int order = size - 1;
+			int totalOrder  = 0;
+			
+			for (auto &layer : layers) {
+				int layerOrder = int(layer.ratio*order);
+				layer.length = layerOrder + 1;
+				totalOrder += layerOrder;
+			}
+			// It rounds down, so we're going to end up too short
+			int missingOrder = std::min<int>(layers.size(), order - totalOrder);
+			for (int i = 0; i < missingOrder; ++i) {
+				layers[i].length++;
+			}
+			for (auto &layer : layers) layer.filter.set(layer.length);
+		}
+
+		/// Resets (with an optional "fill" value)
+		void reset(Sample v=Sample()) {
+			for (auto &layer : layers) layer.filter.reset(v);
+		}
+		
+		Sample operator()(Sample v) {
+			for (auto &layer : layers) {
+				v = layer.filter(v);
+			}
+			return v;
 		}
 	};
 
