@@ -209,15 +209,15 @@ namespace envelopes {
 	};
 
 	/** FIR filter made from a stack of `BoxFilter`s.
-		This filter has a non-negative impulse (monotonic step response), making it useful for smoothing positive-only values.  The internal box-lengths are chosen to minimse peaks in the stop-band.
-		\diagram{box-stack-long.svg,Impulse responses for various stack sizes at length N=1000}
-		Since the box-averages must have integer width, it's less accurate for shorter lengths:
-		\diagram{box-stack-short-freq.svg,Frequency responses for various stack sizes at length N=30}
+		This filter has a non-negative impulse (monotonic step response), making it useful for smoothing positive-only values.  The internal box-lengths are chosen to minimise peaks in the stop-band.
+			\diagram{box-stack-long.svg,Impulse responses for various stack sizes at length N=1000}
+		Since the box-averages must have integer width, the frequency response is less accurate for shorter lengths with higher numbers of layers:
+			\diagram{box-stack-short-freq.svg,Frequency responses for various stack sizes at length N=30}
 	*/
 	template<typename Sample=double>
 	class BoxStackFilter {
 		struct Layer {
-			double ratio = 0;
+			double ratio = 0, lengthError = 0;
 			int length = 0;
 			BoxFilter<Sample> filter{0};
 			Layer() {}
@@ -247,15 +247,20 @@ namespace envelopes {
 			set(maxSize);
 		}
 		
-		/// Approximate bandwidth for a given number of layers
+		/** Approximate bandwidth for a given number of layers
+		\diagram{box-stack-bandwidth.svg,Approximate main lobe width (bandwidth)}
+		*/
 		static constexpr double layersToBandwidth(int layers) {
 			return 1.58*(layers + 0.1);
 		}
-		/// Approximate peak in the stop-band
+		/** Approximate peak in the stop-band
+		\diagram{box-stack-peak.svg,Heuristic stop-band peak}
+		*/
 		static constexpr double layersToPeakDb(int layers) {
 			return 5 - layers*18;
 		}
 		
+		/// Sets the maximum impulse response length and layer count
 		void resize(int maxSize, int layerCount) {
 			if (int(layers.size()) != layerCount) setupLayers(layerCount);
 			for (auto &layer : layers) {
@@ -264,7 +269,7 @@ namespace envelopes {
 			if (maxSize < _size) set(maxSize);
 		}
 		
-		/// Configures so that the impulse response is `size` samples long.
+		/// Sets the impulse response length (does not reset if `size` ≤ `maxSize`)
 		void set(int size) {
 			if (_size == size) return;
 			_size = size;
@@ -272,21 +277,32 @@ namespace envelopes {
 			int totalOrder  = 0;
 			
 			for (auto &layer : layers) {
-				int layerOrder = int(layer.ratio*order);
+				double layerOrderFractional = layer.ratio*order;
+				int layerOrder = int(layerOrderFractional);
 				layer.length = layerOrder + 1;
+				layer.lengthError = layerOrder - layerOrderFractional;
 				totalOrder += layerOrder;
 			}
-			// It rounds down, so we're going to end up too short
-			int missingOrder = std::min<int>(layers.size(), order - totalOrder);
-			for (int i = 0; i < missingOrder; ++i) {
-				layers[i].length++;
+			// Round some of them up, so the total is correct - this is O(N²), but `layers.size()` is small
+			while (totalOrder < order) {
+				int minIndex = 0;
+				double minError = layers[0].lengthError;
+				for (size_t i = 1; i < layers.size(); ++i) {
+					if (layers[i].lengthError < minError) {
+						minError = layers[i].lengthError;
+						minIndex = i;
+					}
+				}
+				layers[minIndex].length++;
+				layers[minIndex].lengthError += 1;
+				totalOrder++;
 			}
 			for (auto &layer : layers) layer.filter.set(layer.length);
 		}
 
-		/// Resets (with an optional "fill" value)
-		void reset(Sample v=Sample()) {
-			for (auto &layer : layers) layer.filter.reset(v);
+		/// Resets the filter
+		void reset(Sample fill=Sample()) {
+			for (auto &layer : layers) layer.filter.reset(fill);
 		}
 		
 		Sample operator()(Sample v) {
