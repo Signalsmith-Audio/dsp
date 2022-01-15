@@ -317,7 +317,7 @@ namespace envelopes {
 		
 		The size is variable, and can be changed instantly with `.set()`, or by using `.push()`/`.pop()` in an unbalanced way.
 
-		To guarantee no allocations while running, it uses a fixed-size array (not a `std::deque`) which determines the maximum length.
+		To avoid allocations while running, it uses a fixed-size array (not a `std::deque`) which determines the maximum length.
 	*/
 	template<typename Sample=double>
 	class PeakHold {
@@ -356,6 +356,7 @@ namespace envelopes {
 			frontIndex = backIndex = 0;
 			segments[0] = {fill, s};
 		}
+		
 		/// Sets a new size, extending the oldest value if needed
 		void set(int newSize) {
 			int oldSize = size();
@@ -367,6 +368,12 @@ namespace envelopes {
 					pop();
 				}
 			}
+		}
+		/// Adds a new value and drops an old one.
+		Sample operator()(Sample v) {
+			pop();
+			push(v);
+			return read();
 		}
 
 		/// Drops the oldest value from the peak tracker.
@@ -391,11 +398,38 @@ namespace envelopes {
 		Sample read() const {
 			return segments[frontIndex&indexMask].value;
 		}
-		/// Adds a new value and drops an old one.
-		Sample operator()(Sample v) {
-			pop();
-			push(v);
-			return read();
+	};
+	
+	/** Peak-decay filter.
+		\diagram{peak-hold.svg}
+		This always returns a value greater than the input sample, and (given a constant input) will reach that value in a fixed amount of time.
+	*/
+	template<typename Sample=double>
+	class PeakDecayLinear {
+		PeakHold<Sample> peakHold;
+		Sample value = 0;
+		Sample stepMultiplier = 1;
+	public:
+		PeakDecayLinear(int maxLength) : peakHold(maxLength) {
+			set(maxLength);
+		}
+		void resize(int maxLength) {
+			peakHold(maxLength);
+			set(maxLength);
+		}
+		void set(double length) {
+			peakHold.set(length);
+			stepMultiplier = Sample(1)/length;
+		}
+		void reset(Sample start=Sample()) {
+			peakHold.reset(start);
+			value = start;
+		}
+		
+		Sample operator ()(Sample v) {
+			Sample peak = peakHold.read();
+			peakHold(v);
+			return value = std::max<Sample>(v, value + (v - peak)*stepMultiplier);
 		}
 	};
 
