@@ -225,6 +225,18 @@ namespace envelopes {
 		std::vector<Layer> layers;
 		void setupLayers(int layerCount) {
 			layers.resize(layerCount, Layer{});
+			// Hardcoded results from numerical search
+			if (layerCount == 2) {
+				layers[0].ratio = 0.5822417;
+				layers[1].ratio = 0.4177583;
+				return;
+			} else if (layerCount == 3) {
+				layers[0].ratio = 0.4040786;
+				layers[1].ratio = 0.3348516;
+				layers[2].ratio = 0.2610698;
+				return;
+			}
+			// An awful heuristic
 			double invN = 1.0/layerCount, sqrtN = std::sqrt(layerCount);
 			double p = 1 - invN;
 			double k = 1 + 4.5/sqrtN + 0.08*sqrtN;
@@ -400,9 +412,9 @@ namespace envelopes {
 		}
 	};
 	
-	/** Peak-decay filter.
-		\diagram{peak-hold.svg}
-		This always returns a value greater than the input sample, and (given a constant input) will reach that value in a fixed amount of time.
+	/** Peak-decay filter with a linear shape and fixed-time return to constant value.
+		\diagram{peak-decay-linear.svg}
+		This is equivalent to a `BoxFilter` which resets itself whenever the output would be less than the input.
 	*/
 	template<typename Sample=double>
 	class PeakDecayLinear {
@@ -414,12 +426,12 @@ namespace envelopes {
 			set(maxLength);
 		}
 		void resize(int maxLength) {
-			peakHold(maxLength);
+			peakHold.resize(maxLength);
 			set(maxLength);
 		}
 		void set(double length) {
 			peakHold.set(length);
-			stepMultiplier = Sample(1)/length;
+			stepMultiplier = Sample(1.0001)/length;
 		}
 		void reset(Sample start=Sample()) {
 			peakHold.reset(start);
