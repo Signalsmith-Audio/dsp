@@ -6,6 +6,7 @@
 #include <cmath>
 #include <random>
 #include <vector>
+#include <iterator>
 
 namespace signalsmith {
 namespace envelopes {
@@ -131,7 +132,7 @@ namespace envelopes {
 		void resize(int maxLength) {
 			bufferLength = maxLength + 1;
 			buffer.resize(bufferLength);
-			buffer.shrink_to_fit();
+			if (maxLength != 0) buffer.shrink_to_fit();
 			reset();
 		}
 		
@@ -174,27 +175,28 @@ namespace envelopes {
 		}
 	};
 	
-	/** Rectangular moving average filter */
+	/** Rectangular moving average filter (FIR).
+		A filter of length 1 has order 0 (i.e. does nothing). */
 	template<typename Sample=double>
 	class BoxFilter {
 		BoxSum<Sample> boxSum;
-		int _size, _maxSize;
+		int _length, _maxLength;
 		Sample multiplier;
 	public:
-		BoxFilter(int maxSize) : boxSum(maxSize) {
-			resize(maxSize);
+		BoxFilter(int maxLength) : boxSum(maxLength) {
+			resize(maxLength);
 		}
 		/// Sets the maximum size (and current size, and resets)
-		void resize(int maxSize) {
-			_maxSize = maxSize;
-			boxSum.resize(maxSize);
-			set(maxSize);
+		void resize(int maxLength) {
+			_maxLength = maxLength;
+			boxSum.resize(maxLength);
+			set(maxLength);
 		}
 		/// Sets the current size (expanding/allocating only if needed)
-		void set(int size) {
-			_size = size;
-			multiplier = Sample(1)/size;
-			if (size > _maxSize) resize(size);
+		void set(int length) {
+			_length = length;
+			multiplier = Sample(1)/length;
+			if (length > _maxLength) resize(length);
 		}
 		
 		/// Resets (with an optional "fill" value)
@@ -203,14 +205,14 @@ namespace envelopes {
 		}
 		
 		Sample operator()(Sample v) {
-			return boxSum.readWrite(v, _size)*multiplier;
+			return boxSum.readWrite(v, _length)*multiplier;
 		}
 	};
 
 	/** FIR filter made from a stack of `BoxFilter`s.
-		This filter has a non-negative impulse (monotonic step response), making it useful for smoothing positive-only values.  The internal box-lengths are chosen to minimise peaks in the stop-band.
+		This filter has a non-negative impulse (monotonic step response), making it useful for smoothing positive-only values.  It provides an optimal set of box-lengths, chosen to minimise peaks in the stop-band:
 			\diagram{box-stack-long.svg,Impulse responses for various stack sizes at length N=1000}
-		Since the box-averages must have integer width, the frequency response is less accurate for shorter lengths with higher numbers of layers:
+		Since the underlying box-averages must have integer width, the peaks are slightly higher for shorter lengths with higher numbers of layers:
 			\diagram{box-stack-short-freq.svg,Frequency responses for various stack sizes at length N=30}
 	*/
 	template<typename Sample=double>
@@ -223,20 +225,19 @@ namespace envelopes {
 		};
 		int _size;
 		std::vector<Layer> layers;
-		void setupLayers(int layerCount) {
-			layers.resize(layerCount, Layer{});
-			// Hardcoded results from numerical search
-			if (layerCount == 2) {
-				layers[0].ratio = 0.5822417;
-				layers[1].ratio = 0.4177583;
-				return;
+		/// Returns an optimal set of length ratios (heuristic for larger depths)
+		std::vector<double> optimalRatios(int layerCount) {
+			if (layerCount <= 0) {
+				return {};
+			} else if (layerCount == 1) {
+				return {1};
+			} else if (layerCount == 2) {
+				return {0.5822417, 0.4177583};
 			} else if (layerCount == 3) {
-				layers[0].ratio = 0.4040786;
-				layers[1].ratio = 0.3348516;
-				layers[2].ratio = 0.2610698;
-				return;
+				return {0.4040786, 0.3348516, 0.2610698};
 			}
-			// An awful heuristic
+			std::vector<double> result(layerCount);
+
 			double invN = 1.0/layerCount, sqrtN = std::sqrt(layerCount);
 			double p = 1 - invN;
 			double k = 1 + 4.5/sqrtN + 0.08*sqrtN;
@@ -246,42 +247,67 @@ namespace envelopes {
 				double x = i*invN;
 				double power = -x*(1 - p*std::exp(-x*k));
 				double length = std::pow(2, power);
-				layers[i].ratio = length;
+				result[i] = length;
 				sum += length;
 			}
 			double factor = 1/sum;
-			for (auto &layer : layers) layer.ratio *= factor;
+			for (auto &r : result) r *= factor;
+			return result;
+		}
+		template<class Iterable>
+		void setupLayers(const Iterable &ratios) {
+			layers.resize(0);
+			double sum = 0;
+			for (auto ratio : ratios) {
+				Layer layer;
+				layer.ratio = ratio;
+				layers.push_back(layer);
+				sum += ratio;
+			}
+			double factor = 1/sum;
+			for (auto &l : layers) {
+				l.ratio *= factor;
+			}
 		}
 	public:
 		BoxStackFilter(int maxSize, int layers=4) {
 			resize(maxSize, layers);
 		}
 		
-		/** Approximate bandwidth for a given number of layers
+		/** Approximate (optimal) bandwidth for a given number of layers
 		\diagram{box-stack-bandwidth.svg,Approximate main lobe width (bandwidth)}
 		*/
 		static constexpr double layersToBandwidth(int layers) {
 			return 1.58*(layers + 0.1);
 		}
-		/** Approximate peak in the stop-band
+		/** Approximate (optimal) peak in the stop-band
 		\diagram{box-stack-peak.svg,Heuristic stop-band peak}
 		*/
 		static constexpr double layersToPeakDb(int layers) {
 			return 5 - layers*18;
 		}
 		
-		/// Sets the maximum (and current) impulse response length and layer count, and resets the filter.
+		/// Sets size using an optimal (heuristic at larger sizes) set of length ratios
 		void resize(int maxSize, int layerCount) {
-			if (int(layers.size()) != layerCount) setupLayers(layerCount);
-			for (auto &layer : layers) {
-				layer.filter.resize(int(maxSize*layer.ratio + 2));
-			}
+			resize(maxSize, optimalRatios(layerCount));
+		}
+		/// Sets the maximum (and current) impulse response length and explicit length ratios
+		template<class List>
+		auto resize(int maxSize, List ratios) -> decltype(void(std::begin(ratios)), void(std::end(ratios))) {
+			setupLayers(ratios);
+			for (auto &layer : layers) layer.filter.resize(0); // .set() will expand it later
+			_size = -1;
 			set(maxSize);
 			reset();
+		}
+		void resize(int maxSize, std::initializer_list<double> ratios) {
+			resize<const std::initializer_list<double> &>(maxSize, ratios);
 		}
 		
 		/// Sets the impulse response length (does not reset if `size` ≤ `maxSize`)
 		void set(int size) {
+			if (layers.size() == 0) return; // meaningless
+
 			if (_size == size) return;
 			_size = size;
 			int order = size - 1;
