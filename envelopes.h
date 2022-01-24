@@ -225,35 +225,7 @@ namespace envelopes {
 		};
 		int _size;
 		std::vector<Layer> layers;
-		/// Returns an optimal set of length ratios (heuristic for larger depths)
-		std::vector<double> optimalRatios(int layerCount) {
-			if (layerCount <= 0) {
-				return {};
-			} else if (layerCount == 1) {
-				return {1};
-			} else if (layerCount == 2) {
-				return {0.5822417, 0.4177583};
-			} else if (layerCount == 3) {
-				return {0.4040786, 0.3348516, 0.2610698};
-			}
-			std::vector<double> result(layerCount);
 
-			double invN = 1.0/layerCount, sqrtN = std::sqrt(layerCount);
-			double p = 1 - invN;
-			double k = 1 + 4.5/sqrtN + 0.08*sqrtN;
-
-			double sum = 0;
-			for (int i = 0; i < layerCount; ++i) {
-				double x = i*invN;
-				double power = -x*(1 - p*std::exp(-x*k));
-				double length = std::pow(2, power);
-				result[i] = length;
-				sum += length;
-			}
-			double factor = 1/sum;
-			for (auto &r : result) r *= factor;
-			return result;
-		}
 		template<class Iterable>
 		void setupLayers(const Iterable &ratios) {
 			layers.resize(0);
@@ -273,7 +245,35 @@ namespace envelopes {
 		BoxStackFilter(int maxSize, int layers=4) {
 			resize(maxSize, layers);
 		}
-		
+
+		/// Returns an optimal set of length ratios (heuristic for larger depths)
+		static std::vector<double> optimalRatios(int layerCount) {
+			// Coefficients up to 6, found through numerical search
+			static double hardcoded[] = {1, 0.58224186169, 0.41775813831, 0.404078562416, 0.334851475794, 0.261069961789, 0.307944914938, 0.27369945234, 0.22913263601, 0.189222996712, 0.248329349789, 0.229253789144, 0.201191468123, 0.173033035122, 0.148192357821, 0.205275202874, 0.198413552119, 0.178256637764, 0.157821404506, 0.138663023387, 0.121570179349 /*, 0.178479592135, 0.171760666359, 0.158434068954, 0.143107825806, 0.125907148711, 0.11853946895, 0.103771229086, 0.155427880834, 0.153063152848, 0.142803459422, 0.131358358458, 0.104157805178, 0.119338029601, 0.0901675284678, 0.103683785192, 0.143949349747, 0.139813248378, 0.132051305252, 0.122216776152, 0.112888320989, 0.102534988632, 0.0928386714364, 0.0719750997699, 0.0817322396428, 0.130587011572, 0.127244563184, 0.121228748787, 0.113509941974, 0.105000272288, 0.0961938290157, 0.0880639725438, 0.0738389766046, 0.0746781936619, 0.0696544903682 */};
+			if (layerCount <= 0) {
+				return {};
+			} else if (layerCount <= 6) {
+				double *start = &hardcoded[layerCount*(layerCount - 1)/2];
+				return std::vector<double>(start, start + layerCount);
+			}
+			std::vector<double> result(layerCount);
+
+			double invN = 1.0/layerCount, sqrtN = std::sqrt(layerCount);
+			double p = 1 - invN;
+			double k = 1 + 4.5/sqrtN + 0.08*sqrtN;
+
+			double sum = 0;
+			for (int i = 0; i < layerCount; ++i) {
+				double x = i*invN;
+				double power = -x*(1 - p*std::exp(-x*k));
+				double length = std::pow(2, power);
+				result[i] = length;
+				sum += length;
+			}
+			double factor = 1/sum;
+			for (auto &r : result) r *= factor;
+			return result;
+		}
 		/** Approximate (optimal) bandwidth for a given number of layers
 		\diagram{box-stack-bandwidth.svg,Approximate main lobe width (bandwidth)}
 		*/
