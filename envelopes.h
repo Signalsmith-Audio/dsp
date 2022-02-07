@@ -2,6 +2,7 @@
 #define SIGNALSMITH_DSP_ENVELOPES_H
 
 #include "./common.h"
+#include "./delay.h" // for the circular buffer
 
 #include <cmath>
 #include <random>
@@ -355,86 +356,98 @@ namespace envelopes {
 		
 		The size is variable, and can be changed instantly with `.set()`, or by using `.push()`/`.pop()` in an unbalanced way.
 
-		To avoid allocations while running, it uses a fixed-size array (not a `std::deque`) which determines the maximum length.
+		This has complexity O(1) every sample.  To avoid allocations while running, it uses a fixed-size array (not a `std::deque`) which determines the maximum length.
 	*/
-	template<typename Sample=double>
+	template<typename Sample>
 	class PeakHold {
-		int frontIndex = 0, backIndex = 0;
-		int indexMask;
-		struct Segment {
-			Sample value;
-			int length;
-		};
-		std::vector<Segment> segments;
+		static constexpr double lowest = std::numeric_limits<double>::lowest();
+		signalsmith::delay::Buffer<Sample> buffer;
+		int backIndex = 0, middleStart = 0, workingIndex = 0, middleEnd = 0, frontIndex = 0;
+		Sample frontMax = lowest, workingMax = lowest, middleMax = lowest;
+		
 	public:
-		PeakHold(int maxLength) {
-			resize(maxLength);
+		PeakHold(int maxLength) : buffer(maxLength) {
+			backIndex = -maxLength; // use as starting length as well
+			reset();
 		}
-		/// Sets the maximum guaranteed size.
-		void resize(int maxLength) {
-			int length = 1;
-			while (length < maxLength) length *= 2;
-			indexMask = length - 1;
-			
-			frontIndex = backIndex = 0;
-			// Sets the size
-			segments.assign(length, Segment{0, maxLength});
+		int size() {
+			return frontIndex - backIndex;
 		}
-		/// Calculates the current size
-		int size() const {
-			int result = 0;
-			for (int i = frontIndex; i <= backIndex; ++i) {
-				result += segments[i&indexMask].length;
+		void reset(Sample fill=lowest) {
+			int prevSize = size();
+			buffer.reset(fill);
+			frontMax = workingMax = middleMax = lowest;
+			middleEnd = workingIndex = frontIndex = 0;
+			middleStart = middleEnd - (prevSize/2);
+			backIndex = frontIndex - prevSize;
+			if (middleStart == backIndex) ++middleStart; // size-0 case
+		}
+		void set(int newSize) {
+			while (size() < newSize) {
+				push(frontMax);
 			}
-			return result;
-		}
-		/// Resets the filter, preserving the size
-		void reset(Sample fill=Sample()) {
-			int s = size();
-			frontIndex = backIndex = 0;
-			segments[0] = {fill, s};
+			while (size() > newSize) {
+				pop();
+			}
 		}
 		
-		/// Sets a new size, extending the oldest value if needed
-		void set(int newSize) {
-			int oldSize = size();
-			if (newSize > oldSize) {
-				auto &front = segments[frontIndex&indexMask];
-				front.length += newSize - oldSize;
-			} else {
-				for (int i = 0; i < oldSize - newSize; ++i) {
-					pop();
-				}
-			}
-		}
-		/// Adds a new value and drops an old one.
-		Sample operator()(Sample v) {
-			pop();
-			push(v);
-			return read();
-		}
-
-		/// Drops the oldest value from the peak tracker.
-		void pop() {
-			auto &front = segments[frontIndex&indexMask];
-			if (--front.length == 0) {
-				++frontIndex;
-			}
-		}
-		/// Adds a value to the peak tracker
 		void push(Sample v) {
-			int length = 1;
-			while (backIndex >= frontIndex && segments[backIndex&indexMask].value <= v) {
-				// Consume the segment
-				length += segments[backIndex&indexMask].length;
-				--backIndex;
-			}
-			++backIndex;
-			segments[backIndex&indexMask] = {v, length};
+			buffer[frontIndex] = v;
+			++frontIndex;
+			frontMax = std::max(frontMax, v);
 		}
-		/// Returns the current value
-		Sample read() const {
-			return segments[frontIndex&indexMask].value;
+		void pop() {
+			if (backIndex == middleStart) {
+				// Move along the maximums
+				workingMax = lowest;
+				middleMax = frontMax;
+				frontMax = lowest;
+
+				int prevFrontLength = frontIndex - middleEnd;
+				int prevMiddleLength = middleEnd - middleStart;
+				if (prevFrontLength <= prevMiddleLength) {
+					// Swap over simply
+					middleStart = middleEnd;
+					middleEnd = frontIndex;
+					workingIndex = middleEnd;
+				} else {
+					// The front is longer than expected - this only happens when we're changing size
+					// We don't move *all* of the front over, keeping half the surplus in the front
+					int middleLength = (frontIndex - middleStart)/2;
+					middleStart = middleEnd;
+					if (middleStart == backIndex) ++middleStart;
+					middleEnd += middleLength;
+					// Since the front was not completely consumed, we re-calculate the front's maximum
+					for (int i = middleEnd; i != frontIndex; ++i) {
+						frontMax = std::max(frontMax, buffer[i]);
+					}
+
+					// Working index is close enough that it will be finished by the time the back is empty
+					int backLength = middleStart - backIndex;
+					int workingLength = std::min(backLength - 1, middleLength);
+					workingIndex = middleStart + workingLength;
+					// The index might not start at the end of the working block - compute the last bit immediately
+					for (int i = middleEnd - 1; i != workingIndex - 1; --i) {
+						buffer[i] = workingMax = std::max(workingMax, buffer[i]);
+					}
+				}
+
+			}
+
+			++backIndex;
+			--workingIndex;
+			buffer[workingIndex] = workingMax = std::max(workingMax, buffer[workingIndex]);
+		}
+		Sample read() {
+			Sample backMax = buffer[backIndex];
+			return std::max(backMax, std::max(middleMax, frontMax));
+		}
+		
+		// For simple use as a constant-length filter
+		Sample operator ()(Sample v) {
+			push(v);
+			pop();
+			return read();
 		}
 	};
 	
