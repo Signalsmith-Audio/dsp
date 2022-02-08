@@ -424,7 +424,7 @@ namespace envelopes {
 
 					// Working index is close enough that it will be finished by the time the back is empty
 					int backLength = middleStart - backIndex;
-					int workingLength = std::min(backLength - 1, middleLength);
+					int workingLength = std::min(backLength - 1, middleEnd - middleStart);
 					workingIndex = middleStart + workingLength;
 					// The index might not start at the end of the working block - compute the last bit immediately
 					for (int i = middleEnd - 1; i != workingIndex - 1; --i) {
@@ -435,8 +435,10 @@ namespace envelopes {
 			}
 
 			++backIndex;
-			--workingIndex;
-			buffer[workingIndex] = workingMax = std::max(workingMax, buffer[workingIndex]);
+			if (workingIndex != middleStart) {
+				--workingIndex;
+				buffer[workingIndex] = workingMax = std::max(workingMax, buffer[workingIndex]);
+			}
 		}
 		Sample read() {
 			Sample backMax = buffer[backIndex];
