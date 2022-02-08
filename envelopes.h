@@ -2,7 +2,6 @@
 #define SIGNALSMITH_DSP_ENVELOPES_H
 
 #include "./common.h"
-#include "./delay.h" // for the circular buffer
 
 #include <cmath>
 #include <random>
@@ -361,21 +360,30 @@ namespace envelopes {
 	template<typename Sample>
 	class PeakHold {
 		static constexpr double lowest = std::numeric_limits<double>::lowest();
-		signalsmith::delay::Buffer<Sample> buffer;
+		int bufferMask;
+		std::vector<Sample> buffer;
 		int backIndex = 0, middleStart = 0, workingIndex = 0, middleEnd = 0, frontIndex = 0;
 		Sample frontMax = lowest, workingMax = lowest, middleMax = lowest;
 		
 	public:
-		PeakHold(int maxLength) : buffer(maxLength) {
-			backIndex = -maxLength; // use as starting length as well
-			reset();
+		PeakHold(int maxLength) {
+			resize(maxLength);
 		}
 		int size() {
 			return frontIndex - backIndex;
 		}
+		void resize(int maxLength) {
+			int bufferLength = 1;
+			while (bufferLength < maxLength) bufferLength *= 2;
+			buffer.resize(bufferLength);
+			bufferMask = bufferLength - 1;
+			
+			frontIndex = backIndex + maxLength;
+			reset();
+		}
 		void reset(Sample fill=lowest) {
 			int prevSize = size();
-			buffer.reset(fill);
+			buffer.assign(buffer.size(), fill);
 			frontMax = workingMax = middleMax = lowest;
 			middleEnd = workingIndex = frontIndex = 0;
 			middleStart = middleEnd - (prevSize/2);
@@ -392,7 +400,7 @@ namespace envelopes {
 		}
 		
 		void push(Sample v) {
-			buffer[frontIndex] = v;
+			buffer[frontIndex&bufferMask] = v;
 			++frontIndex;
 			frontMax = std::max(frontMax, v);
 		}
@@ -405,7 +413,7 @@ namespace envelopes {
 
 				int prevFrontLength = frontIndex - middleEnd;
 				int prevMiddleLength = middleEnd - middleStart;
-				if (prevFrontLength <= prevMiddleLength) {
+				if (prevFrontLength <= prevMiddleLength + 1) {
 					// Swap over simply
 					middleStart = middleEnd;
 					middleEnd = frontIndex;
@@ -419,7 +427,7 @@ namespace envelopes {
 					middleEnd += middleLength;
 					// Since the front was not completely consumed, we re-calculate the front's maximum
 					for (int i = middleEnd; i != frontIndex; ++i) {
-						frontMax = std::max(frontMax, buffer[i]);
+						frontMax = std::max(frontMax, buffer[i&bufferMask]);
 					}
 
 					// Working index is close enough that it will be finished by the time the back is empty
@@ -428,7 +436,7 @@ namespace envelopes {
 					workingIndex = middleStart + workingLength;
 					// The index might not start at the end of the working block - compute the last bit immediately
 					for (int i = middleEnd - 1; i != workingIndex - 1; --i) {
-						buffer[i] = workingMax = std::max(workingMax, buffer[i]);
+						buffer[i&bufferMask] = workingMax = std::max(workingMax, buffer[i&bufferMask]);
 					}
 				}
 
@@ -437,11 +445,11 @@ namespace envelopes {
 			++backIndex;
 			if (workingIndex != middleStart) {
 				--workingIndex;
-				buffer[workingIndex] = workingMax = std::max(workingMax, buffer[workingIndex]);
+				buffer[workingIndex&bufferMask] = workingMax = std::max(workingMax, buffer[workingIndex&bufferMask]);
 			}
 		}
 		Sample read() {
-			Sample backMax = buffer[backIndex];
+			Sample backMax = buffer[backIndex&bufferMask];
 			return std::max(backMax, std::max(middleMax, frontMax));
 		}
 		
