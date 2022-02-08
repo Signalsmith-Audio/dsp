@@ -607,7 +607,7 @@ namespace delay {
 		}
 	};
 
-	/**	@brief A single-channel delay-line containing its own buffer. */
+	/**	@brief A single-channel delay-line containing its own buffer.*/
 	template<class Sample, template<typename> class Interpolator=InterpolatorLinear>
 	class Delay : private Reader<Sample, Interpolator> {
 		using Super = Reader<Sample, Interpolator>;
@@ -615,9 +615,9 @@ namespace delay {
 	public:
 		static constexpr Sample latency = Super::latency;
 
-		Delay(int capacity=0) : buffer(capacity + Super::inputLength) {}
+		Delay(int capacity=0) : buffer(1 + capacity + Super::inputLength) {}
 		/// Pass in a configured interpolator
-		Delay(const Interpolator<Sample> &interp, int capacity=0) : Super(interp), buffer(capacity + Super::inputLength) {}
+		Delay(const Interpolator<Sample> &interp, int capacity=0) : Super(interp), buffer(1 + capacity + Super::inputLength) {}
 		
 		void reset(Sample value=Sample()) {
 			buffer.reset(value);
@@ -626,18 +626,17 @@ namespace delay {
 			buffer.resize(minCapacity + Super::inputLength, value);
 		}
 		
+		/** Read a sample from `delaySamples` >= 0 in the past.
+		The interpolator may add its own latency on top of this (see `::latency`).  The default interpolation (linear) has 0 latency.
+		*/
 		Sample read(Sample delaySamples) const {
 			return Super::read(buffer, delaySamples);
 		}
-		void write(Sample value) {
-			buffer[0] = value;
+		/// Writes a sample. Returns the same object, so that you can say `delay.write(v).read(delay)`.
+		Delay & write(Sample value) {
 			++buffer;
-		}
-		Sample readWrite(Sample value, Sample delaySamples) {
 			buffer[0] = value;
-			Sample result = Super::read(buffer, delaySamples);
-			++buffer;
-			return result;
+			return *this;
 		}
 	};
 
@@ -650,7 +649,7 @@ namespace delay {
 	public:
 		static constexpr Sample latency = Super::latency;
 
-		MultiDelay(int channels=0, int capacity=0) : channels(channels), multiBuffer(channels, capacity + Super::inputLength) {}
+		MultiDelay(int channels=0, int capacity=0) : channels(channels), multiBuffer(channels, 1 + capacity + Super::inputLength) {}
 
 		void reset(Sample value=Sample()) {
 			multiBuffer.reset(value);
@@ -704,36 +703,12 @@ namespace delay {
 			}
 		}
 		template<class Data>
-		void write(const Data &data) {
+		MultiDelay & write(const Data &data) {
+			++multiBuffer;
 			for (int c = 0; c < channels; ++c) {
 				multiBuffer[c][0] = data[c];
 			}
-			++multiBuffer;
-		}
-		template<class Data>
-		DelayView readWrite(const Data &data, Sample delaySamples) {
-			for (int c = 0; c < channels; ++c) {
-				multiBuffer[c][0] = data[c];
-			}
-			DelayView result = read(delaySamples);
-			++multiBuffer;
-			return result;
-		}
-		template<class Data, class Output>
-		void readWrite(const Data &data, Sample delaySamples, Output &output) {
-			for (int c = 0; c < channels; ++c) {
-				multiBuffer[c][0] = data[c];
-			}
-			read(delaySamples, output);
-			++multiBuffer;
-		}
-		template<class Data, class Delays, class Output>
-		void readWriteMulti(const Data &data, const Delays &delays, Output &output) {
-			for (int c = 0; c < channels; ++c) {
-				multiBuffer[c][0] = data[c];
-			}
-			readMulti(delays, output);
-			++multiBuffer;
+			return *this;
 		}
 	};
 
