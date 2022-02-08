@@ -467,8 +467,9 @@ namespace envelopes {
 	*/
 	template<typename Sample=double>
 	class PeakDecayLinear {
+		static constexpr Sample lowest = std::numeric_limits<Sample>::lowest();
 		PeakHold<Sample> peakHold;
-		Sample value = 0;
+		Sample value = lowest;
 		Sample stepMultiplier = 1;
 	public:
 		PeakDecayLinear(int maxLength) : peakHold(maxLength) {
@@ -476,14 +477,16 @@ namespace envelopes {
 		}
 		void resize(int maxLength) {
 			peakHold.resize(maxLength);
-			set(maxLength);
+			reset();
 		}
 		void set(double length) {
 			peakHold.set(length);
-			stepMultiplier = Sample(1.0001)/length;
+			// Overshoot slightly but don't exceed 1
+			stepMultiplier = Sample(1.0001)/std::max(1.0001, length);
 		}
-		void reset(Sample start=Sample()) {
+		void reset(Sample start=lowest) {
 			peakHold.reset(start);
+			set(peakHold.size());
 			value = start;
 		}
 		
