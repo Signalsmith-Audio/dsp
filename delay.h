@@ -627,7 +627,7 @@ namespace delay {
 		}
 		
 		/** Read a sample from `delaySamples` >= 0 in the past.
-		The interpolator may add its own latency on top of this (see `::latency`).  The default interpolation (linear) has 0 latency.
+		The interpolator may add its own latency on top of this (see `Delay::latency`).  The default interpolation (linear) has 0 latency.
 		*/
 		Sample read(Sample delaySamples) const {
 			return Super::read(buffer, delaySamples);

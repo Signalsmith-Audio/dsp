@@ -6,7 +6,12 @@ A C++11 header-only library, providing classes/templates for (mostly audio) sign
 git clone https://signalsmith-audio.co.uk/code/dsp.git
 ```
 
-⚠️ It's fairly early in development, so (while the parts which exist should be well-tested) the APIs might change.
+Just include the header file(s) you need, and an optional version-check:
+
+```
+#include "dsp/delay.h"
+SIGNALSMITH_DSP_VERSION_CHECK(1, 0, 0)
+```
 
 ### Documentation
 
