@@ -359,7 +359,7 @@ namespace envelopes {
 	*/
 	template<typename Sample>
 	class PeakHold {
-		static constexpr double lowest = std::numeric_limits<double>::lowest();
+		static constexpr Sample lowest = std::numeric_limits<Sample>::lowest();
 		int bufferMask;
 		std::vector<Sample> buffer;
 		int backIndex = 0, middleStart = 0, workingIndex = 0, middleEnd = 0, frontIndex = 0;
@@ -480,7 +480,7 @@ namespace envelopes {
 			reset();
 		}
 		void set(double length) {
-			peakHold.set(length);
+			peakHold.set(std::ceil(length));
 			// Overshoot slightly but don't exceed 1
 			stepMultiplier = Sample(1.0001)/std::max(1.0001, length);
 		}
