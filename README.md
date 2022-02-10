@@ -2,20 +2,28 @@
 
 A C++11 header-only library, providing classes/templates for (mostly audio) signal-processing tasks.
 
+More detail is in the [main project page](https://signalsmith-audio.co.uk/code/dsp/), and the [Doxygen docs](https://signalsmith-audio.co.uk/code/dsp/html/modules.html).
+
+## Basic use
+
 ```
 git clone https://signalsmith-audio.co.uk/code/dsp.git
 ```
 
-Just include the header file(s) you need, and an optional version-check:
+Just include the header file(s) you need, and start using classes:
 
-```
+```cpp
 #include "dsp/delay.h"
-SIGNALSMITH_DSP_VERSION_CHECK(1, 0, 0)
+
+using Delay = signalsmith::delay::Delay<float>;
+Delay delayLine(1024);
 ```
 
-### Documentation
-
-Docs are on the web: https://signalsmith-audio.co.uk/code/dsp/
+You can add a compile-time version-check to make sure you have a compatible version of the library:
+```cpp
+#include "dsp/envelopes.h"
+SIGNALSMITH_DSP_VERSION_CHECK(1, 0, 3)
+```
 
 ### Development / contributing
 
