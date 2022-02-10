@@ -355,7 +355,7 @@ namespace envelopes {
 		
 		The size is variable, and can be changed instantly with `.set()`, or by using `.push()`/`.pop()` in an unbalanced way.
 
-		This has complexity O(1) every sample.  To avoid allocations while running, it uses a fixed-size array (not a `std::deque`) which determines the maximum length.
+		This has complexity O(1) every sample when the length remains constant (balanced `.push()`/`.pop()`, or using `filter(v)`), and amortised O(1) complexity otherwise.  To avoid allocations while running, it uses a fixed-size array (not a `std::deque`) which determines the maximum length.
 	*/
 	template<typename Sample>
 	class PeakHold {
@@ -388,9 +388,9 @@ namespace envelopes {
 			middleEnd = workingIndex = frontIndex = 0;
 			middleStart = middleEnd - (prevSize/2);
 			backIndex = frontIndex - prevSize;
-			if (middleStart == backIndex) ++middleStart; // size-0 case
 		}
 		void set(int newSize) {
+			// TODO: move `backIndex` backwards instead, with or without resetting
 			while (size() < newSize) {
 				push(frontMax);
 			}
@@ -419,27 +419,41 @@ namespace envelopes {
 					middleEnd = frontIndex;
 					workingIndex = middleEnd;
 				} else {
-					// The front is longer than expected - this only happens when we're changing size
+					// The front is longer than the middle - only happens if unbalanced
 					// We don't move *all* of the front over, keeping half the surplus in the front
 					int middleLength = (frontIndex - middleStart)/2;
 					middleStart = middleEnd;
-					if (middleStart == backIndex) ++middleStart;
 					middleEnd += middleLength;
+
+					// Working index is close enough that it will be finished by the time the back is empty
+					int backLength = middleStart - backIndex;
+					int workingLength = std::min(backLength, middleEnd - middleStart);
+					workingIndex = middleStart + workingLength;
+
 					// Since the front was not completely consumed, we re-calculate the front's maximum
 					for (int i = middleEnd; i != frontIndex; ++i) {
 						frontMax = std::max(frontMax, buffer[i&bufferMask]);
 					}
-
-					// Working index is close enough that it will be finished by the time the back is empty
-					int backLength = middleStart - backIndex;
-					int workingLength = std::min(backLength - 1, middleEnd - middleStart);
-					workingIndex = middleStart + workingLength;
 					// The index might not start at the end of the working block - compute the last bit immediately
 					for (int i = middleEnd - 1; i != workingIndex - 1; --i) {
 						buffer[i&bufferMask] = workingMax = std::max(workingMax, buffer[i&bufferMask]);
 					}
 				}
 
+				// Is the new back (previous middle) empty? Only happens if unbalanced
+				if (backIndex == middleStart) {
+					 // swap over again (front's empty, no change)
+					workingMax = lowest;
+					middleMax = frontMax;
+					frontMax = lowest;
+					middleStart = workingIndex = middleEnd;
+	
+					if (backIndex == middleStart) {
+						--backIndex; // Only happens if you pop from an empty list - fail nicely
+					}
+				}
+				
+				buffer[frontIndex&bufferMask] = lowest; // In case of length 0, when everything points at this value
 			}
 
 			++backIndex;
