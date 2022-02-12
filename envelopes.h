@@ -168,7 +168,7 @@ namespace envelopes {
 			sum += value;
 			buffer[index] = sum;
 		}
-		
+
 		Sample readWrite(Sample value, int width) {
 			write(value);
 			return read(width);
@@ -389,10 +389,15 @@ namespace envelopes {
 			middleStart = middleEnd - (prevSize/2);
 			backIndex = frontIndex - prevSize;
 		}
+		/** Sets the size immediately.
+		Must be `0 <= newSize <= maxLength` (see constructor and `.resize()`).
+		When expanding, it re-includes older values which had previously gone out of range.*/
 		void set(int newSize) {
-			// TODO: move `backIndex` backwards instead, with or without resetting
 			while (size() < newSize) {
-				push(frontMax);
+				Sample back1 = buffer[backIndex&bufferMask];
+				--backIndex;
+				Sample back2 = buffer[backIndex&bufferMask];
+				buffer[backIndex&bufferMask] = std::max(back1, back2);
 			}
 			while (size() > newSize) {
 				pop();
