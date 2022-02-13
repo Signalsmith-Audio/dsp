@@ -391,13 +391,15 @@ namespace envelopes {
 		}
 		/** Sets the size immediately.
 		Must be `0 <= newSize <= maxLength` (see constructor and `.resize()`).
-		When expanding, it re-includes older values which had previously gone out of range.*/
-		void set(int newSize) {
+		
+		Expanding and then shrinking always produces the same values.
+		If `preserveCurrentPeak = false`, expanding re-includes older values which had previously gone out of range, so that shrinking doesn't lose any information.  Otherwise, it re-writes its own history such that the current output value is unchanged.*/
+		void set(int newSize, bool preserveCurrentPeak=false) {
 			while (size() < newSize) {
-				Sample back1 = buffer[backIndex&bufferMask];
+				Sample &backPrev = buffer[backIndex&bufferMask];
 				--backIndex;
-				Sample back2 = buffer[backIndex&bufferMask];
-				buffer[backIndex&bufferMask] = std::max(back1, back2);
+				Sample &back = buffer[backIndex&bufferMask];
+				back = preserveCurrentPeak ? backPrev : std::max(back, backPrev);
 			}
 			while (size() > newSize) {
 				pop();
