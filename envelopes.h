@@ -355,7 +355,7 @@ namespace envelopes {
 		
 		The size is variable, and can be changed instantly with `.set()`, or by using `.push()`/`.pop()` in an unbalanced way.
 
-		This has complexity O(1) every sample when the length remains constant (balanced `.push()`/`.pop()`, or using `filter(v)`), and amortised O(1) complexity otherwise.  To avoid allocations while running, it uses a fixed-size array (not a `std::deque`) which determines the maximum length.
+		This has complexity O(1) every sample when the length remains constant (balanced `.push()`/`.pop()`, or using `filter(v)`), and amortised O(1) complexity otherwise.  To avoid allocations while running, it pre-allocates a vector (not a `std::deque`) which determines the maximum length.
 	*/
 	template<typename Sample>
 	class PeakHold {
@@ -392,8 +392,7 @@ namespace envelopes {
 		/** Sets the size immediately.
 		Must be `0 <= newSize <= maxLength` (see constructor and `.resize()`).
 		
-		Expanding and then shrinking always produces the same values.
-		If `preserveCurrentPeak = false`, expanding re-includes older values which had previously gone out of range, so that shrinking doesn't lose any information.  Otherwise, it re-writes its own history such that the current output value is unchanged.*/
+		Shrinking doesn't destroy information, and if you expand again (with `preserveCurrentPeak=false`), you will get the same output as before shrinking.  Expanding when `preserveCurrentPeak` is enabled is destructive, re-writing its history such that the current output value is unchanged.*/
 		void set(int newSize, bool preserveCurrentPeak=false) {
 			while (size() < newSize) {
 				Sample &backPrev = buffer[backIndex&bufferMask];
