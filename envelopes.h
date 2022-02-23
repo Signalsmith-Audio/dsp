@@ -516,6 +516,105 @@ namespace envelopes {
 			return value = std::max<Sample>(v, value + (v - peak)*stepMultiplier);
 		}
 	};
+	
+	/* Smooth interpolation (optionally monotonic) between points, using cubic segments.
+	To produce a sharp corner, use a repeated point. */
+	template<typename Sample=double>
+	class CubicSegments {
+		// Gradient - must have y0 != y1
+		static inline double gradient(Sample x0, Sample x1, Sample y0, Sample y1) {
+			return (y1 - y0)/(x1 - x0);
+		}
+	public:
+		class Segment {
+			Sample xOffset, a, b, c, d;
+		public:
+			Segment(Sample xOffset, Sample a, Sample b, Sample c, Sample d) : xOffset(xOffset), a(a), b(b), c(c), d(d) {}
+			
+			Sample operator ()(Sample x) const {
+				x -= xOffset;
+				return a + x*(b + x*(c + d*x));
+			}
+			/// Differentiate
+			Segment dx() const {
+				return Segment(xOffset, b, 2*c, 3*d, 0);
+			}
+			
+			static Segment hermite(Sample x0, Sample x1, Sample y0, Sample y1, Sample g0, Sample g1) {
+				Sample xScale = 1/(x1 - x0);
+				return Segment{
+					x0, y0, g0,
+					(3*(y1 - y0)*xScale - 2*g0 - g1)*xScale,
+					(2*(y0 - y1)*xScale + g0 + g1)*(xScale*xScale)
+				};
+			}
+		};
+		
+		/** Cubic segment valid between `x1` and `x2`, which is smooth when applied to an adjacent set of points.
+		If `x0 == x1` or `x2 == x3` it will choose a gradient which minimises the second differential.
+		*/
+		static Segment fromPoints(Sample x0, Sample x1, Sample x2, Sample x3, Sample y0, Sample y1, Sample y2, Sample y3, bool monotonic=false) {
+			if (x1 == x2) {
+				return Segment(0, y1, 0, 0, 0);
+			} else if (x0 == x1) {
+				Sample grad1 = gradient(x1, x2, y1, y2);
+				if (x2 == x3) {
+					// Duplicate points on both sides - return linear segment
+					return Segment(x1, y1, grad1, 0, 0);
+				}
+				Sample grad2 = gradient(x2, x3, y2, y3);
+				Sample curveGrad2 = (grad1 + grad2)*Sample(0.5);
+				if (monotonic) {
+					if ((grad1 <= 0 && grad2 >= 0) || (grad1 >= 0 && grad2 <= 0)) {
+						curveGrad2 = 0; // Point 2 is a local minimum/maximum
+					} else if (std::abs(curveGrad2) > std::abs(grad1)*3) {
+						curveGrad2 = grad1*Sample(1.0/3);
+					}
+				}
+				Sample curveGrad1 = 2*grad1 - curveGrad2;
+				return Segment::hermite(x1, x2, y1, y2, curveGrad1, curveGrad2);
+			} else if (x2 == x3) {
+				Sample grad0 = gradient(x0, x1, y0, y1);
+				Sample grad1 = gradient(x1, x2, y1, y2);
+				Sample curveGrad1 = (grad0 + grad1)*Sample(0.5);
+				if (monotonic) {
+					if ((grad0 <= 0 && grad1 >= 0) || (grad0 >= 0 && grad1 <= 0)) {
+						curveGrad1 = 0; // Point 1 is a local minimum/maximum
+					} else if (std::abs(curveGrad1) > std::abs(grad0)*3) {
+						curveGrad1 = grad1*Sample(1.0/3);
+					}
+				}
+				Sample curveGrad2 = 2*grad1 - curveGrad1;
+				return Segment::hermite(x1, x2, y1, y2, curveGrad1, curveGrad2);
+			}
+			Sample grad0 = gradient(x0, x1, y0, y1);
+			Sample grad1 = gradient(x1, x2, y1, y2);
+			Sample grad2 = gradient(x2, x3, y2, y3);
+			Sample curveGrad1 = (grad0 + grad1)*Sample(0.5);
+			Sample curveGrad2 = (grad1 + grad2)*Sample(0.5);
+			if (monotonic) {
+				if ((grad0 <= 0 && grad1 >= 0) || (grad0 >= 0 && grad1 <= 0)) {
+					curveGrad1 = 0; // Point 1 is a local minimum/maximum
+				}
+				if (std::abs(curveGrad1) > std::abs(grad0)*3) {
+					curveGrad1 = grad0*Sample(1.0/3);
+				}
+				if (std::abs(curveGrad1) > std::abs(grad1)*3) {
+					curveGrad1 = grad1*Sample(1.0/3);
+				}
+				if ((grad1 <= 0 && grad2 >= 0) || (grad1 >= 0 && grad2 <= 0)) {
+					curveGrad2 = 0; // Point 2 is a local minimum/maximum
+				}
+				if (std::abs(curveGrad2) > std::abs(grad1)*3) {
+					curveGrad2 = grad1*Sample(1.0/3);
+				}
+				if (std::abs(curveGrad2) > std::abs(grad2)*3) {
+					curveGrad2 = grad2*Sample(1.0/3);
+				}
+			}
+			return Segment::hermite(x1, x2, y1, y2, curveGrad1, curveGrad2);
+		}
+	};
 
 /** @} */
 }} // signalsmith::envelopes::
