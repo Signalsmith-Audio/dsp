@@ -18,25 +18,21 @@ namespace curves {
 	/// Linear map for real values.
 	template<typename Sample=double>
 	class Linear {
-		Sample a0, a1;
+		Sample a1, a0;
 	public:
 		Linear() : Linear(0, 1) {}
-		Linear(Sample a0, Sample a1) : a0(a0), a1(a1) {}
+		Linear(Sample a0, Sample a1) : a1(a1), a0(a0) {}
+		/// Construct by from/to value pairs
+		Linear(Sample x0, Sample x1, Sample y0, Sample y1) : a1((x0 == x1) ? 0 : (y1 - y0)/(x1 - x0)), a0(y0 - x0*a1) {}
 
-		Sample operator ()(Sample x) {
+		Sample operator ()(Sample x) const {
 			return a0 + x*a1;
 		}
 		
 		/// Returns the inverse map (with some numerical error)
-		Linear inverse() {
+		Linear inverse() const {
 			Sample invA1 = 1/a1;
 			return Linear(-a0*invA1, invA1);
-		}
-
-		static Linear fromPoints(Sample x0, Sample x1, Sample y0, Sample y1) {
-			if (x0 == x1) return Linear(y0, 0);
-			Sample gradient = (y1 - y0)/(x1 - x0);
-			return Linear(y0 - x0*gradient, gradient);
 		}
 	};
 
@@ -84,7 +80,7 @@ namespace curves {
 			return a0 + x*(a1 + x*(a2 + x*a3));
 		}
 		/// The reference x-value, used as the centre of the cubic expansion
-		Sample start() {
+		Sample start() const {
 			return xStart;
 		}
 		/// Differentiate
@@ -182,7 +178,7 @@ namespace curves {
 		}
 		
 		/// Reads a value out from the curve.
-		Sample operator ()(Sample x) {
+		Sample operator ()(Sample x) const {
 			if (x <= first.x) return first.y;
 			if (x >= last.x) return last.y;
 			size_t index = 1;
@@ -193,7 +189,7 @@ namespace curves {
 		}
 		
 		using Segment = Cubic<Sample>;
-		const std::vector<Segment> & segments() {
+		const std::vector<Segment> & segments() const {
 			return _segments;
 		}
 	};
