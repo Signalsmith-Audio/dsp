@@ -2,9 +2,7 @@
 #define SIGNALSMITH_DSP_FILTERS_H
 
 #include "./common.h"
-
-#include "./fft.h"
-#include "./delay.h"
+#include "./perf.h"
 
 #include <cmath>
 
@@ -131,17 +129,17 @@ namespace filters {
 		void lowShelf(double scaledFreq, double gain, double octaves=2, bool correctBandwidth=true) {
 			configure(Type::lowShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth);
 		}
-//		void highShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
-//			double sqrtGain = std::pow(10, db*0.025);
-//			configure(Type::highShelf, scaledFreq, octaves, sqrtGain, correctBandwidth);
-//		}
-//		void lowShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
-//			double sqrtGain = std::pow(10, db*0.025);
-//			configure(Type::lowShelf, scaledFreq, octaves, sqrtGain, correctBandwidth);
-//		}
-//		void bandStop(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
-//			configure(Type::bandStop, scaledFreq, octaves, 0, correctBandwidth);
-//		}
+		void highShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
+			double sqrtGain = std::pow(10, db*0.025);
+			configure(Type::highShelf, scaledFreq, octaves, sqrtGain, correctBandwidth);
+		}
+		void lowShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
+			double sqrtGain = std::pow(10, db*0.025);
+			configure(Type::lowShelf, scaledFreq, octaves, sqrtGain, correctBandwidth);
+		}
+		void bandStop(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
+			configure(Type::bandStop, scaledFreq, octaves, 0, correctBandwidth);
+		}
 	};
 
 /** @} */
