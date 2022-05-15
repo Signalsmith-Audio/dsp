@@ -15,6 +15,13 @@ namespace filters {
 		@file
 	*/
 	
+	enum class BiquadDesign {
+		bilinear, /// Bilinear transform, adjusting for centre frequency but not bandwidth
+ 		cookbook, /// RBJ's "Audio EQ Cookbook".  Based on `bilinear`, adjusts bandwidth (for peak/notch/bandpass) by preserving the ratio between upper/lower boundaries.  This performs oddly near Nyquist.
+		oneSided, /// Based on `bilinear`, but adjust bandwidth by preserving the lower boundary (and leaves the upper one loose).
+		vicanek /// From Martin Vicanek's "Matched Second Order Digital Filters".  This takes the poles from the impulse-invariant approach, and then picks the zeros to create a better match.  This means that Nyquist is not 0dB for peak/notch (or -Inf for lowpass), but it is a decent match to the analogue prototype.
+	};
+	
 	/** A standard biquad.
 
 		This is not guaranteed to be stable if modulated at audio rate.
@@ -24,17 +31,41 @@ namespace filters {
 		Bandwidth compensation defaults to `true` for all filter types aside from highpass/lowpass.  When in "cookbook mode", it roughly preserves the ratio between upper/lower boundaries (-3dB point or half-gain).  Otherwise, it exactly preserves the lower boundary.*/
 	template<typename Sample, bool cookbookBandwidth=false>
 	class BiquadStatic {
+		static constexpr BiquadDesign bwDesign = cookbookBandwidth ? BiquadDesign::cookbook : BiquadDesign::oneSided;
 		Sample a1 = 0, a2 = 0, b0 = 1, b1 = 0, b2 = 0;
 		Sample x1 = 0, x2 = 0, y1 = 0, y2 = 0;
 		
 		// Straight from the cookbook: https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
 		enum class Type {highpass, lowpass, highShelf, lowShelf, bandpass, bandStop};
-		SIGNALSMITH_INLINE void configure(Type type, double scaledFreq, double octaves, double sqrtGain, bool correctBandwidth) {
+
+		SIGNALSMITH_INLINE void configure(Type type, double scaledFreq, double octaves, double sqrtGain, BiquadDesign design) {
 			scaledFreq = std::max(0.0001, std::min(0.4999, scaledFreq));
 			double w0 = 2*M_PI*scaledFreq;
+			if (design == BiquadDesign::vicanek && type == Type::lowpass) {
+				double Q = std::sinh(std::log(2)*0.5*octaves);
+				double q = 1/(2*Q);
+				double expmqw = std::exp(-q*w0);
+				if (q <= 1) {
+					a1 = -2*expmqw*std::cos(std::sqrt(1 - q*q)*w0);
+				} else {
+					a1 = -2*expmqw*std::cosh(std::sqrt(q*q - 1)*w0);
+				}
+				a2 = expmqw*expmqw;
+				double sinpd2 = std::sin(w0/2);
+				double p0 = 1 - sinpd2*sinpd2, p1 = sinpd2*sinpd2, p2 = 4*p0*p1;
+				double A0 = 1 + a1 + a2, A1 = 1 - a1 + a2, A2 = -4*a2;
+				A0 *= A0;
+				A1 *= A1;
+				double R1 = (A0*p0 + A1*p1 + A2*p2)*Q*Q;
+				double B0 = A0, B1 = (R1 - B0*p0)/p1;
+				b0 = 0.5*(std::sqrt(B0) + std::sqrt(B1));
+				b1 = std::sqrt(B0) - b0;
+				b2 = 0;
+				return;
+			}
 			double cos_w0 = std::cos(w0), sin_w0 = std::sin(w0);
-			if (correctBandwidth) {
-				if (cookbookBandwidth) {
+			if (design != BiquadDesign::bilinear) {
+				if (design == BiquadDesign::cookbook) {
 					// Approximately preserves bandwidth between halfway points
 					octaves *= w0/sin_w0;
 				} else {
@@ -114,31 +145,35 @@ namespace filters {
 			x1 = x2 = y1 = y2 = 0;
 		}
 
-		void highpass(double scaledFreq, double octaves=1.9, bool correctBandwidth=false) {
-			configure(Type::highpass, scaledFreq, octaves, 0, correctBandwidth);
+		void lowpass(double scaledFreq, double octaves=1.9, BiquadDesign design=BiquadDesign::bilinear) {
+			configure(Type::lowpass, scaledFreq, octaves, 0, design);
 		}
-		void lowpass(double scaledFreq, double octaves=1.9, bool correctBandwidth=false) {
-			configure(Type::lowpass, scaledFreq, octaves, 0, correctBandwidth);
+
+		void highpass(double scaledFreq, double octaves=1.9, bool correctBandwidth=false) {
+			configure(Type::highpass, scaledFreq, octaves, 0, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+		}
+		void lowpass(double scaledFreq, double octaves, bool correctBandwidth) {
+			configure(Type::lowpass, scaledFreq, octaves, 0, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 		void bandpass(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
-			configure(Type::bandpass, scaledFreq, octaves, 0, correctBandwidth);
+			configure(Type::bandpass, scaledFreq, octaves, 0, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 		void highShelf(double scaledFreq, double gain, double octaves=2, bool correctBandwidth=true) {
-			configure(Type::highShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth);
+			configure(Type::highShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 		void lowShelf(double scaledFreq, double gain, double octaves=2, bool correctBandwidth=true) {
-			configure(Type::lowShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth);
+			configure(Type::lowShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 		void highShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
 			double sqrtGain = std::pow(10, db*0.025);
-			configure(Type::highShelf, scaledFreq, octaves, sqrtGain, correctBandwidth);
+			configure(Type::highShelf, scaledFreq, octaves, sqrtGain, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 		void lowShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
 			double sqrtGain = std::pow(10, db*0.025);
-			configure(Type::lowShelf, scaledFreq, octaves, sqrtGain, correctBandwidth);
+			configure(Type::lowShelf, scaledFreq, octaves, sqrtGain, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 		void bandStop(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
-			configure(Type::bandStop, scaledFreq, octaves, 0, correctBandwidth);
+			configure(Type::bandStop, scaledFreq, octaves, 0, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 	};
 
