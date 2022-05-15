@@ -4,6 +4,7 @@
 #include "./common.h"
 #include "./perf.h"
 #include "./fft.h"
+#include "./windows.h"
 #include "./delay.h"
 
 #include <cmath>
@@ -122,7 +123,7 @@ namespace spectral {
 		}
 	};
 	
-	/** STFT synthesis/analysis/processing, built on a `MultiBuffer`.
+	/** STFT synthesis, built on a `MultiBuffer`.
  
 		Any window length and block interval is supported, but the FFT size may be rounded up to a faster size (by zero-padding).  It uses a heuristically-optimal Kaiser window modified for perfect-reconstruction.
 		
@@ -383,9 +384,71 @@ namespace spectral {
 			validUntilIndex++;
 			return result;
 		}
-
 	};
 
+	/** STFT processing, with input/output.
+		Before calling `.ensureValid(index)`, you should make sure the input is filled up to `index`.
+	*/
+	template<typename Sample>
+	class ProcessSTFT : public STFT<Sample> {
+		using Super = STFT<Sample>;
+	public:
+		signalsmith::delay::MultiBuffer<Sample> input;
+	
+		ProcessSTFT(int inChannels, int outChannels, int windowSize, int interval, int historyLength=0) {
+			resize(inChannels, outChannels, windowSize, interval, historyLength);
+		}
+
+		/** Alter the spectrum, using input up to this point, for the output block starting from this point.
+			Sub-classes should replace this with whatever processing is desired. */
+		virtual void processSpectrum(int /*blockIndex*/) {}
+		
+		/// Sets the input/output channels, FFT size and interval.
+		void resize(int inChannels, int outChannels, int windowSize, int interval, int historyLength=0) {
+			Super::resize(outChannels, windowSize, interval, historyLength);
+			input.resize(inChannels, windowSize + interval + historyLength);
+		}
+		void reset(Sample value=Sample()) {
+			Super::reset(value);
+			input.reset(value);
+		}
+
+		/// Internal latency, including buffering samples for analysis.
+		int latency() {
+			return Super::latency() + (this->windowSize() - 1);
+		}
+		
+		void ensureValid(int i=0) {
+			Super::ensureValid(i, [&](int blockIndex) {
+				this->analyse(input.view(blockIndex - this->windowSize() + 1));
+				this->processSpectrum(blockIndex);
+			});
+		}
+
+		// @name Shift the output, input, and valid index.
+		// @{
+		ProcessSTFT & operator ++() {
+			Super::operator ++();
+			++input;
+			return *this;
+		}
+		ProcessSTFT & operator +=(int i) {
+			Super::operator +=(i);
+			input += i;
+			return *this;
+		}
+		ProcessSTFT & operator --() {
+			Super::operator --();
+			--input;
+			return *this;
+		}
+		ProcessSTFT & operator -=(int i) {
+			Super::operator -=(i);
+			input -= i;
+			return *this;
+		}
+		// @}
+	};
 
 /** @} */
 }} // signalsmith::spectral::
