@@ -67,6 +67,15 @@ namespace filters {
 					b2 = b0 = std::sqrt(A0*p0 + A1*p1 + A2*p2)*Q/(4*p1);
 					b1 = -2*b0;
 					return;
+				} else if (type == Type::bandpass) {
+					double R1 = A0*p0 + A1*p1 + A2*p2;
+					double R2 = -A0 + A1 + 4*(p0 - p1)*A2;
+					double B2 = (R1 - R2*p1)/(4*p1*p1);
+					double B1 = R2 + 4*(p1 - p0)*B2;
+					b1 = -0.5*std::sqrt(B1);
+					b0 = 0.5*(std::sqrt(B2 + 0.25*B1) - b1);
+					b2 = -b0 - b1;
+					return;
 				}
 			}
 			double cos_w0 = std::cos(w0), sin_w0 = std::sin(w0);
@@ -163,16 +172,22 @@ namespace filters {
 		void highpass(double scaledFreq, double octaves, BiquadDesign design=BiquadDesign::bilinear) {
 			configure(Type::highpass, scaledFreq, octaves, 0, design);
 		}
+		void bandpass(double scaledFreq, BiquadDesign design=bwDesign) {
+			return bandpass(scaledFreq, 1, design);
+		}
+		void bandpass(double scaledFreq, double octaves, BiquadDesign design=bwDesign) {
+			configure(Type::bandpass, scaledFreq, octaves, 0, design);
+		}
 
 		// Old API
 		void highpass(double scaledFreq, double octaves, bool correctBandwidth) {
-			configure(Type::highpass, scaledFreq, octaves, 0, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+			return highpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 		void lowpass(double scaledFreq, double octaves, bool correctBandwidth) {
-			configure(Type::lowpass, scaledFreq, octaves, 0, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+			return lowpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
-		void bandpass(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
-			configure(Type::bandpass, scaledFreq, octaves, 0, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+		void bandpass(double scaledFreq, double octaves, bool correctBandwidth) {
+			return bandpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 		void highShelf(double scaledFreq, double gain, double octaves=2, bool correctBandwidth=true) {
 			configure(Type::highShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth ? bwDesign : BiquadDesign::bilinear);
