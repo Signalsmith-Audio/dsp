@@ -42,7 +42,7 @@ namespace filters {
 			scaledFreq = std::max(0.0001, std::min(0.4999, scaledFreq));
 			double w0 = 2*M_PI*scaledFreq;
 			if (design == BiquadDesign::vicanek && type == Type::lowpass) {
-				double Q = std::sinh(std::log(2)*0.5*octaves);
+				double Q = 0.5/std::sinh(std::log(2)*0.5*octaves);
 				double q = 1/(2*Q);
 				double expmqw = std::exp(-q*w0);
 				if (q <= 1) {
@@ -145,11 +145,21 @@ namespace filters {
 			x1 = x2 = y1 = y2 = 0;
 		}
 
-		void lowpass(double scaledFreq, double octaves=1.9, BiquadDesign design=BiquadDesign::bilinear) {
+		void lowpass(double scaledFreq, BiquadDesign design=BiquadDesign::bilinear) {
+			return lowpass(scaledFreq, 1.9, design);
+		}
+		void lowpass(double scaledFreq, double octaves, BiquadDesign design=BiquadDesign::bilinear) {
 			configure(Type::lowpass, scaledFreq, octaves, 0, design);
 		}
+		void highpass(double scaledFreq, BiquadDesign design=BiquadDesign::bilinear) {
+			return highpass(scaledFreq, 1.9, design);
+		}
+		void highpass(double scaledFreq, double octaves, BiquadDesign design=BiquadDesign::bilinear) {
+			configure(Type::highpass, scaledFreq, octaves, 0, design);
+		}
 
-		void highpass(double scaledFreq, double octaves=1.9, bool correctBandwidth=false) {
+		// Old API
+		void highpass(double scaledFreq, double octaves, bool correctBandwidth) {
 			configure(Type::highpass, scaledFreq, octaves, 0, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 		void lowpass(double scaledFreq, double octaves, bool correctBandwidth) {
