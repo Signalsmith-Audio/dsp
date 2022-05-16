@@ -19,7 +19,7 @@ namespace filters {
 		bilinear, /// Bilinear transform, adjusting for centre frequency but not bandwidth
  		cookbook, /// RBJ's "Audio EQ Cookbook".  Based on `bilinear`, adjusts bandwidth (for peak/notch/bandpass) by preserving the ratio between upper/lower boundaries.  This performs oddly near Nyquist.
 		oneSided, /// Based on `bilinear`, but adjust bandwidth by preserving the lower boundary (and leaves the upper one loose).
-		vicanek /// From Martin Vicanek's "Matched Second Order Digital Filters".  This takes the poles from the impulse-invariant approach, and then picks the zeros to create a better match.  This means that Nyquist is not 0dB for peak/notch (or -Inf for lowpass), but it is a decent match to the analogue prototype.
+		vicanek /// From Martin Vicanek's "Matched Second Order Digital Filters".  This takes the poles from the impulse-invariant approach, and then picks the zeros to create a better match.  This means that Nyquist is not 0dB for peak/notch (or -Inf for lowpass), but it is a decent match to the analogue prototype. https://vicanek.de/articles/BiquadFits.pdf
 	};
 	
 	/** A standard biquad.
@@ -41,7 +41,7 @@ namespace filters {
 		SIGNALSMITH_INLINE void configure(Type type, double scaledFreq, double octaves, double sqrtGain, BiquadDesign design) {
 			scaledFreq = std::max(0.0001, std::min(0.4999, scaledFreq));
 			double w0 = 2*M_PI*scaledFreq;
-			if (design == BiquadDesign::vicanek && type == Type::lowpass) {
+			if (design == BiquadDesign::vicanek) {
 				double Q = 0.5/std::sinh(std::log(2)*0.5*octaves);
 				double q = 1/(2*Q);
 				double expmqw = std::exp(-q*w0);
@@ -56,12 +56,18 @@ namespace filters {
 				double A0 = 1 + a1 + a2, A1 = 1 - a1 + a2, A2 = -4*a2;
 				A0 *= A0;
 				A1 *= A1;
-				double R1 = (A0*p0 + A1*p1 + A2*p2)*Q*Q;
-				double B0 = A0, B1 = (R1 - B0*p0)/p1;
-				b0 = 0.5*(std::sqrt(B0) + std::sqrt(B1));
-				b1 = std::sqrt(B0) - b0;
-				b2 = 0;
-				return;
+				if (type == Type::lowpass) {
+					double R1 = (A0*p0 + A1*p1 + A2*p2)*Q*Q;
+					double B0 = A0, B1 = (R1 - B0*p0)/p1;
+					b0 = 0.5*(std::sqrt(B0) + std::sqrt(B1));
+					b1 = std::sqrt(B0) - b0;
+					b2 = 0;
+					return;
+				} else if (type == Type::highpass) {
+					b2 = b0 = std::sqrt(A0*p0 + A1*p1 + A2*p2)*Q/(4*p1);
+					b1 = -2*b0;
+					return;
+				}
 			}
 			double cos_w0 = std::cos(w0), sin_w0 = std::sin(w0);
 			if (design != BiquadDesign::bilinear) {
