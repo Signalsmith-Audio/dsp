@@ -36,13 +36,17 @@ namespace filters {
 		Sample x1 = 0, x2 = 0, y1 = 0, y2 = 0;
 		
 		// Straight from the cookbook: https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
-		enum class Type {highpass, lowpass, highShelf, lowShelf, bandpass, bandStop};
+		enum class Type {highpass, lowpass, highShelf, lowShelf, bandpass, notch, peak};
 
 		SIGNALSMITH_INLINE void configure(Type type, double scaledFreq, double octaves, double sqrtGain, BiquadDesign design) {
 			scaledFreq = std::max(0.0001, std::min(0.4999, scaledFreq));
+			if (design == BiquadDesign::cookbook) {
+				// Falls apart a bit near Nyquist
+				scaledFreq = std::min(0.45, scaledFreq);
+			}
 			double w0 = 2*M_PI*scaledFreq;
 			if (design == BiquadDesign::vicanek) {
-				double Q = 0.5/std::sinh(std::log(2)*0.5*octaves);
+				double Q = (type == Type::peak ? 1 : 0.5)/std::sinh(std::log(2)*0.5*octaves);
 				double q = 1/(2*Q);
 				double expmqw = std::exp(-q*w0);
 				if (q <= 1) {
@@ -75,6 +79,29 @@ namespace filters {
 					b1 = -0.5*std::sqrt(B1);
 					b0 = 0.5*(std::sqrt(B2 + 0.25*B1) - b1);
 					b2 = -b0 - b1;
+					return;
+				} else if (type == Type::notch) {
+					// The Vicanek paper doesn't cover notches (band-stop), but we know where the zeros should be:
+					b0 = 1;
+					b1 = -2*std::cos(w0);
+					b2 = 1;
+					// Scale so that B0 == A0 to get 0dB at f=0
+					double scale = std::sqrt(A0)/(b0 + b1 + b2);
+					b0 *= scale;
+					b1 *= scale;
+					b2 *= scale;
+					return;
+				} else if (type == Type::peak) {
+					double G2 = (sqrtGain*sqrtGain)*(sqrtGain*sqrtGain);
+					double R1 = (A0*p0 + A1*p1 + A2*p2)*G2;
+					double R2 = (-A0 + A1 + 4*(p0 - p1)*A2)*G2;
+					double B0 = A0;
+					double B2 = (R1 - R2*p1 - B0)/(4*p1*p1);
+					double B1 = R2 + B0 + 4*(p1 - p0)*B2;
+					double W = 0.5*(std::sqrt(B0) + std::sqrt(B1));
+					b0 = 0.5*(W + std::sqrt(W*W + B2));
+					b1 = 0.5*(std::sqrt(B0) - std::sqrt(B1));
+					b2 = -B2/(4*b0);
 					return;
 				}
 			}
@@ -126,13 +153,20 @@ namespace filters {
 				a0 = 1 + alpha;
 				a1 = -2*cos_w0;
 				a2 = 1 - alpha;
-			} else if (type == Type::bandStop) {
+			} else if (type == Type::notch) {
 				b0 = 1;
 				b1 = -2*cos_w0;
 				b2 = 1;
 				a0 = 1 + alpha;
 				a1 = b1;
 				a2 = 1 - alpha;
+			} else if (type == Type::peak) {
+				b0 = 1 + alpha*A;
+				b1 = -2*cos_w0;
+				b2 = 1 - alpha*A;
+				a0 = 1 + alpha/A;
+				a1 = b1;
+				a2 = 1 - alpha/A;
 			} else {
 				// reset to neutral
 				a1 = a2 = b1 = b2 = 0;
@@ -178,6 +212,18 @@ namespace filters {
 		void bandpass(double scaledFreq, double octaves, BiquadDesign design=bwDesign) {
 			configure(Type::bandpass, scaledFreq, octaves, 0, design);
 		}
+		void notch(double scaledFreq, BiquadDesign design=bwDesign) {
+			return notch(scaledFreq, 1, design);
+		}
+		void notch(double scaledFreq, double octaves, BiquadDesign design=bwDesign) {
+			configure(Type::notch, scaledFreq, octaves, 0, design);
+		}
+		void peak(double scaledFreq, double gain, BiquadDesign design=bwDesign) {
+			return peak(scaledFreq, gain, 1, design);
+		}
+		void peak(double scaledFreq, double gain, double octaves, BiquadDesign design=bwDesign) {
+			configure(Type::peak, scaledFreq, octaves, std::sqrt(gain), design);
+		}
 
 		// Old API
 		void highpass(double scaledFreq, double octaves, bool correctBandwidth) {
@@ -203,8 +249,12 @@ namespace filters {
 			double sqrtGain = std::pow(10, db*0.025);
 			configure(Type::lowShelf, scaledFreq, octaves, sqrtGain, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
+		void notch(double scaledFreq, double octaves, bool correctBandwidth) {
+			return notch(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+		}
+		/// Deprecated alias for `.notch()`
 		void bandStop(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
-			configure(Type::bandStop, scaledFreq, octaves, 0, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+			return notch(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 	};
 
