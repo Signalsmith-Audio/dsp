@@ -27,7 +27,7 @@ namespace filters {
 		bilinear, ///< Bilinear transform, adjusting for centre frequency but not bandwidth
  		cookbook, ///< RBJ's "Audio EQ Cookbook".  Based on `bilinear`, adjusts bandwidth (for peak/notch/bandpass) by preserving the ratio between upper/lower boundaries.  This performs oddly near Nyquist.
 		oneSided, ///< Based on `bilinear`, but adjust bandwidth by preserving the lower boundary (and leaves the upper one loose).
-		vicanek ///< From Martin Vicanek's [Matched Second Order Digital Filters](https://vicanek.de/articles/BiquadFits.pdf).  Currently incomplete, falling back to `oneSided`.  This takes the poles from the impulse-invariant approach, and then picks the zeros to create a better match.  This means that Nyquist is not 0dB for peak/notch (or -Inf for lowpass), but it is a decent match to the analogue prototype. 
+		vicanek ///< From Martin Vicanek's [Matched Second Order Digital Filters](https://vicanek.de/articles/BiquadFits.pdf).  Currently incomplete, falling back to `oneSided`.  This takes the poles from the impulse-invariant approach, and then picks the zeros to create a better match.  This means that Nyquist is not 0dB for peak/notch (or -Inf for lowpass), but it is a decent match to the analogue prototype.
 	};
 	
 	/** A standard biquad.
