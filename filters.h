@@ -35,7 +35,6 @@ namespace filters {
 		Sample a1 = 0, a2 = 0, b0 = 1, b1 = 0, b2 = 0;
 		Sample x1 = 0, x2 = 0, y1 = 0, y2 = 0;
 		
-		// Straight from the cookbook: https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
 		enum class Type {highpass, lowpass, highShelf, lowShelf, bandpass, notch, peak};
 
 		SIGNALSMITH_INLINE void configure(Type type, double scaledFreq, double octaves, double sqrtGain, BiquadDesign design) {
