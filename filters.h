@@ -15,7 +15,7 @@ namespace filters {
 		@file
 	*/
 	
-	/** Filter design methods
+	/** Filter design methods.
 		These differ mostly in how they handle frequency-warping near Nyquist:
 		\diagram{filters-lowpass.svg}
 		\diagram{filters-highpass.svg}
@@ -25,9 +25,9 @@ namespace filters {
 	 */
 	enum class BiquadDesign {
 		bilinear, ///< Bilinear transform, adjusting for centre frequency but not bandwidth
- 		cookbook, ///< RBJ's "Audio EQ Cookbook".  Based on `bilinear`, adjusts bandwidth (for peak/notch/bandpass) by preserving the ratio between upper/lower boundaries.  This performs oddly near Nyquist.
-		oneSided, ///< Based on `bilinear`, but adjust bandwidth by preserving the lower boundary (and leaves the upper one loose).
-		vicanek ///< From Martin Vicanek's [Matched Second Order Digital Filters](https://vicanek.de/articles/BiquadFits.pdf).  Currently incomplete, falling back to `oneSided`.  This takes the poles from the impulse-invariant approach, and then picks the zeros to create a better match.  This means that Nyquist is not 0dB for peak/notch (or -Inf for lowpass), but it is a decent match to the analogue prototype.
+ 		cookbook, ///< RBJ's "Audio EQ Cookbook".  Based on `bilinear`, adjusting bandwidth (for peak/notch/bandpass) to preserve the ratio between upper/lower boundaries.  This performs oddly near Nyquist.
+		oneSided, ///< Based on `bilinear`, adjusting bandwidth to preserve the lower boundary (leaving the upper one loose).
+		vicanek ///< From Martin Vicanek's [Matched Second Order Digital Filters](https://vicanek.de/articles/BiquadFits.pdf).  Currently incomplete, falling back to `oneSided` for the shelving filters.  This takes the poles from the impulse-invariant approach, and then picks the zeros to create a better match.  This means that Nyquist is not 0dB for peak/notch (or -Inf for lowpass), but it is a decent match to the analogue prototype.
 	};
 	
 	/** A standard biquad.
@@ -36,7 +36,7 @@ namespace filters {
 		
 		The default highpass/lowpass bandwidth (1.9) produces a Butterworth filter when bandwidth-compensation is disabled.
 		
-		Bandwidth compensation defaults to `true` for all filter types aside from highpass/lowpass.  When in "cookbook mode", it roughly preserves the ratio between upper/lower boundaries (-3dB point or half-gain).  Otherwise, it exactly preserves the lower boundary.*/
+		Bandwidth compensation defaults to `BiquadDesign::oneSided` (or `BiquadDesign::cookbook` if `cookbookBandwidth` is enabled) for all filter types aside from highpass/lowpass (which use `BiquadDesign::bilinear`).*/
 	template<typename Sample, bool cookbookBandwidth=false>
 	class BiquadStatic {
 		static constexpr BiquadDesign bwDesign = cookbookBandwidth ? BiquadDesign::cookbook : BiquadDesign::oneSided;
@@ -208,24 +208,48 @@ namespace filters {
 		void lowpass(double scaledFreq, double octaves, BiquadDesign design=BiquadDesign::bilinear) {
 			configure(Type::lowpass, scaledFreq, octaves, 0, design);
 		}
+		/// @deprecated use `BiquadDesign` instead
+		void lowpass(double scaledFreq, double octaves, bool correctBandwidth) {
+			return lowpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+		}
+		
 		void highpass(double scaledFreq, BiquadDesign design=BiquadDesign::bilinear) {
 			return highpass(scaledFreq, 1.9, design);
 		}
 		void highpass(double scaledFreq, double octaves, BiquadDesign design=BiquadDesign::bilinear) {
 			configure(Type::highpass, scaledFreq, octaves, 0, design);
 		}
+		/// @deprecated use `BiquadDesign` instead
+		void highpass(double scaledFreq, double octaves, bool correctBandwidth) {
+			return highpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+		}
+
 		void bandpass(double scaledFreq, BiquadDesign design=bwDesign) {
 			return bandpass(scaledFreq, 1, design);
 		}
 		void bandpass(double scaledFreq, double octaves, BiquadDesign design=bwDesign) {
 			configure(Type::bandpass, scaledFreq, octaves, 0, design);
 		}
+		/// @deprecated use `BiquadDesign` instead
+		void bandpass(double scaledFreq, double octaves, bool correctBandwidth) {
+			return bandpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+		}
+
 		void notch(double scaledFreq, BiquadDesign design=bwDesign) {
 			return notch(scaledFreq, 1, design);
 		}
 		void notch(double scaledFreq, double octaves, BiquadDesign design=bwDesign) {
 			configure(Type::notch, scaledFreq, octaves, 0, design);
 		}
+		/// @deprecated use `BiquadDesign` instead
+		void notch(double scaledFreq, double octaves, bool correctBandwidth) {
+			return notch(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+		}
+		/// @deprecated alias for `.notch()`
+		void bandStop(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
+			return notch(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+		}
+
 		void peak(double scaledFreq, double gain, BiquadDesign design=bwDesign) {
 			return peak(scaledFreq, gain, 1, design);
 		}
@@ -233,39 +257,23 @@ namespace filters {
 			configure(Type::peak, scaledFreq, octaves, std::sqrt(gain), design);
 		}
 
-		// Old API
-		void highpass(double scaledFreq, double octaves, bool correctBandwidth) {
-			return highpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
-		}
-		void lowpass(double scaledFreq, double octaves, bool correctBandwidth) {
-			return lowpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
-		}
-		void bandpass(double scaledFreq, double octaves, bool correctBandwidth) {
-			return bandpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
-		}
 		void highShelf(double scaledFreq, double gain, double octaves=2, bool correctBandwidth=true) {
 			configure(Type::highShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth ? bwDesign : BiquadDesign::bilinear);
-		}
-		void lowShelf(double scaledFreq, double gain, double octaves=2, bool correctBandwidth=true) {
-			configure(Type::lowShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
 		void highShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
 			double sqrtGain = std::pow(10, db*0.025);
 			configure(Type::highShelf, scaledFreq, octaves, sqrtGain, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
+
+		void lowShelf(double scaledFreq, double gain, double octaves=2, bool correctBandwidth=true) {
+			configure(Type::lowShelf, scaledFreq, octaves, std::sqrt(gain), correctBandwidth ? bwDesign : BiquadDesign::bilinear);
+		}
 		void lowShelfDb(double scaledFreq, double db, double octaves=2, bool correctBandwidth=true) {
 			double sqrtGain = std::pow(10, db*0.025);
 			configure(Type::lowShelf, scaledFreq, octaves, sqrtGain, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
-		void notch(double scaledFreq, double octaves, bool correctBandwidth) {
-			return notch(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
-		}
-		/// Deprecated alias for `.notch()`
-		void bandStop(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
-			return notch(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
-		}
 	};
 
-/** @} */
+	/** @} */
 }} // signalsmith::filters::
 #endif // include guard
