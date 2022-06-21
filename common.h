@@ -14,9 +14,9 @@ namespace signalsmith {
 	*/
 
 #define SIGNALSMITH_DSP_VERSION_MAJOR 1
-#define SIGNALSMITH_DSP_VERSION_MINOR 1
+#define SIGNALSMITH_DSP_VERSION_MINOR 2
 #define SIGNALSMITH_DSP_VERSION_PATCH 0
-#define SIGNALSMITH_DSP_VERSION_STRING "1.1.0"
+#define SIGNALSMITH_DSP_VERSION_STRING "1.2.0"
 
 	/** Version compatability check.
 	\code{.cpp}
