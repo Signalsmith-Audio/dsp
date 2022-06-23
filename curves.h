@@ -130,7 +130,7 @@ namespace curves {
 	};
 	
 	/** Smooth interpolation (optionally monotonic) between points, using cubic segments.
-	\diagram{cubic-segments-example.svg,Example curve including a repeated point at (2.5\, 3.5) and an instantaneous jump at x=4.  The curve is flat beyond the first/last points.}
+	\diagram{cubic-segments-example.svg,Example curve including a repeated point and an instantaneous jump.  The curve is flat beyond the first/last points.}
 	To produce a sharp corner, use a repeated point. The gradient is flat at the edges, unless you use repeated points at the start/end.*/
 	template<typename Sample=double>
 	class CubicSegmentCurve {
@@ -191,6 +191,41 @@ namespace curves {
 		using Segment = Cubic<Sample>;
 		const std::vector<Segment> & segments() const {
 			return _segments;
+		}
+	};
+	
+	/** A warped-range map, based on 1/x
+		\diagram{curves-reciprocal-example.svg}*/
+	template<typename Sample=double>
+	class Reciprocal {
+		Sample a, b, c, d; // (a + bx)/(c + dx)
+		Reciprocal(Sample a, Sample b, Sample c, Sample d) : a(a), b(b), c(c), d(d) {}
+	public:
+		Reciprocal() : Reciprocal(0, 0.5, 1) {}
+		/// If no x-range given, default to the unit range
+		Reciprocal(Sample y0, Sample y1, Sample y2) : Reciprocal(0, 0.5, 1, y0, y1, y2) {}
+		Reciprocal(Sample x0, Sample x1, Sample x2, Sample y0, Sample y1, Sample y2) {
+			Sample kx = (x1 - x0)/(x2 - x1);
+			Sample ky = (y1 - y0)/(y2 - y1);
+			a = (kx*x2)*y0 - (ky*x0)*y2;
+			b = ky*y2 - kx*y0;
+			c = kx*x2 - ky*x0;
+			d = ky - kx;
+		}
+
+		Sample operator ()(double x) const {
+			return (a + b*x)/(c + d*x);
+		}
+		Reciprocal inverse() const {
+			return Reciprocal(-a, c, b, -d);
+		}
+		Sample inverse(Sample y) const {
+			return (c*y - a)/(b - d*y);
+		}
+		
+		/// Combine two `Reciprocal`s together in sequence
+		Reciprocal then(const Reciprocal &other) const {
+			return Reciprocal(other.a*c + other.b*a, other.a*d + other.b*b, other.c*c + other.d*a, other.c*d + other.d*b);
 		}
 	};
 
