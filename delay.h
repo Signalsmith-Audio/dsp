@@ -345,12 +345,13 @@ namespace delay {
 	/** \defgroup Interpolators Interpolators
 		\ingroup Delay
 		@{ */
+	/// Nearest-neighbour interpolator
+	/// \diagram{delay-random-access-nearest.svg,aliasing and maximum amplitude/delay errors for different input frequencies}
 	template<typename Sample>
 	struct InterpolatorNearest {
 		static constexpr int inputLength = 1;
 		static constexpr Sample latency = -0.5; // Because we're truncating, which rounds down too often
 	
-	protected:
 		template<class Data>
 		static Sample fractional(const Data &data, Sample) {
 			return data[0];
@@ -363,7 +364,6 @@ namespace delay {
 		static constexpr int inputLength = 2;
 		static constexpr int latency = 0;
 	
-	protected:
 		template<class Data>
 		static Sample fractional(const Data &data, Sample fractional) {
 			Sample a = data[0], b = data[1];
@@ -377,7 +377,6 @@ namespace delay {
 		static constexpr int inputLength = 4;
 		static constexpr int latency = 1;
 	
-	protected:
 		template<class Data>
 		static Sample fractional(const Data &data, Sample fractional) {
 			// Cubic interpolation
@@ -466,7 +465,7 @@ namespace delay {
 	template<typename Sample>
 	using InterpolatorLagrange19 = InterpolatorLagrangeN<Sample, 19>;
 
-	/** Fixed-size lagrange interpolation.
+	/** Fixed-size Kaiser-windowed sinc interpolation.
 	\diagram{interpolator-KaiserSincN.svg,aliasing and amplitude/delay errors for different sizes}
 	If `minimumPhase` is enabled, a minimum-phase version of the kernel is used:
 	\diagram{interpolator-KaiserSincN-min.svg,aliasing and amplitude/delay errors for minimum-phase mode}

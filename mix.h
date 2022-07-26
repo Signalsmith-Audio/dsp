@@ -20,15 +20,17 @@ namespace mix {
 		@{ */
 
 	/// @brief Hadamard: high mixing levels, N log(N) operations
-	template<typename Sample, size_t size>
-	struct Hadamard {
+	template<typename Sample, int size=-1>
+	class Hadamard {
+	public:
+		static_assert(size >= 0, "Size must be positive (or -1 for dynamic)");
 		/// Applies the matrix, scaled so it's orthogonal
 		template<class Data>
-		static void inPlace(Data &data) {
-			recursiveUnscaled(data);
+		static void inPlace(Data &&data) {
+			unscaledInPlace(data);
 			
 			Sample factor = scalingFactor();
-			for (size_t c = 0; c < size; ++c) {
+			for (int c = 0; c < size; ++c) {
 				data[c] *= factor;
 			}
 		}
@@ -40,38 +42,107 @@ namespace mix {
 		}
 
 		/// Skips the scaling, so it's a matrix full of `1`s
-		template<class Data, size_t startIndex=0>
-		static void unscaledInPlace(Data &data) {
+		template<class Data, int startIndex=0>
+		static void unscaledInPlace(Data &&data) {
 			if (size <= 1) return;
-			constexpr size_t hSize = size/2;
+			constexpr int hSize = size/2;
 
 			Hadamard<Sample, hSize>::template unscaledInPlace<Data, startIndex>(data);
 			Hadamard<Sample, hSize>::template unscaledInPlace<Data, startIndex + hSize>(data);
 
-			for (size_t i = 0; i < hSize; ++i) {
+			for (int i = 0; i < hSize; ++i) {
 				Sample a = data[i + startIndex], b = data[i + startIndex + hSize];
 				data[i + startIndex] = (a + b);
 				data[i + startIndex + hSize] = (a - b);
 			}
 		}
 	};
-	/// @brief Householder: moderate mixing, 2N operations
-	template<typename Sample, size_t size>
-	struct Householder {
+	/// @brief Hadamard with dynamic size
+	template<typename Sample>
+	class Hadamard<Sample, -1> {
+		int size;
+	public:
+		Hadamard(int size) : size(size) {}
+		
+		/// Applies the matrix, scaled so it's orthogonal
 		template<class Data>
-		static void inPlace(Data &data) {
-			constexpr Sample factor = (Sample)-2.0/size;
+		void inPlace(Data &&data) const {
+			unscaledInPlace(data);
+			
+			Sample factor = scalingFactor();
+			for (int c = 0; c < size; ++c) {
+				data[c] *= factor;
+			}
+		}
+
+		/// Scaling factor applied to make it orthogonal
+		Sample scalingFactor() const {
+			return std::sqrt(Sample(1)/size);
+		}
+
+		/// Skips the scaling, so it's a matrix full of `1`s
+		template<class Data>
+		void unscaledInPlace(Data &&data) const {
+			int hSize = size/2;
+			while (hSize > 0) {
+				for (int startIndex = 0; startIndex < size; startIndex += hSize*2) {
+					for (int i = startIndex; i < startIndex + hSize; ++i) {
+						Sample a = data[i], b = data[i + hSize];
+						data[i] = (a + b);
+						data[i + hSize] = (a - b);
+					}
+				}
+				hSize /= 2;
+			}
+		}
+	};
+	/// @brief Householder: moderate mixing, 2N operations
+	template<typename Sample, int size=-1>
+	class Householder {
+	public:
+		static_assert(size >= 0, "Size must be positive (or -1 for dynamic)");
+		template<class Data>
+		static void inPlace(Data &&data) {
+			if (size < 1) return;
+			/// TODO: test for C++20, which makes `std::complex::operator/` constexpr
+			const Sample factor = Sample(-2)/Sample(size ? size : 1);
 
 			Sample sum = data[0];
-			for (size_t i = 1; i < size; ++i) {
+			for (int i = 1; i < size; ++i) {
 				sum += data[i];
 			}
 			sum *= factor;
-			for (size_t i = 0; i < size; ++i) {
+			for (int i = 0; i < size; ++i) {
 				data[i] += sum;
 			}
 		}
-		/// The matrix is already orthogonal, but this is here for compatibility with Hadamard
+		/// @deprecated The matrix is already orthogonal, but this is here for compatibility with Hadamard
+		constexpr static Sample scalingFactor() {
+			return 1;
+		}
+	};
+	/// @brief Householder with dynamic size
+	template<typename Sample>
+	class Householder<Sample, -1> {
+		int size;
+	public:
+		Householder(int size) : size(size) {}
+	
+		template<class Data>
+		void inPlace(Data &&data) const {
+			if (size < 1) return;
+			const Sample factor = Sample(-2)/Sample(size ? size : 1);
+
+			Sample sum = data[0];
+			for (int i = 1; i < size; ++i) {
+				sum += data[i];
+			}
+			sum *= factor;
+			for (int i = 0; i < size; ++i) {
+				data[i] += sum;
+			}
+		}
+		/// @deprecated The matrix is already orthogonal, but this is here for compatibility with Hadamard
 		constexpr static Sample scalingFactor() {
 			return 1;
 		}
@@ -80,14 +151,14 @@ namespace mix {
 	
 	/** @brief Upmix/downmix a stereo signal to an (even) multi-channel signal
 		
-		When spreading out, it rotates the input by various amounts (e.g. a four-channel signal would produce `(left, right, mid side)`).
+		When spreading out, it rotates the input by various amounts (e.g. a four-channel signal would produce `(left, right, mid side)`), such that energy is preserved for each pair.
 		
-		When mixing together, it uses the opposite rotations, such that upmix → downmix produces the same stereo signal.
+		When mixing together, it uses the opposite rotations, such that upmix → downmix produces the same stereo signal (when scaled by `.scalingFactor1()`.
 	*/
 	template<typename Sample, int channels>
 	class StereoMultiMixer {
 		static_assert((channels/2)*2 == channels, "StereoMultiMixer must have an even number of channels");
-		static_assert(channels >= 2, "StereoMultiMixer must have an even number of channels");
+		static_assert(channels > 0, "StereoMultiMixer must have a positive number of channels");
 		static constexpr int hChannels = channels/2;
 		std::array<Sample, channels> coeffs;
 	public:

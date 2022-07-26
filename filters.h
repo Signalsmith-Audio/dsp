@@ -23,12 +23,13 @@ namespace filters {
 		\diagram{filters-peak.svg}
 		\diagram{filters-bandpass.svg}
 		\diagram{filters-notch.svg}
+		\diagram{filters-allpass.svg}
 	 */
 	enum class BiquadDesign {
 		bilinear, ///< Bilinear transform, adjusting for centre frequency but not bandwidth
  		cookbook, ///< RBJ's "Audio EQ Cookbook".  Based on `bilinear`, adjusting bandwidth (for peak/notch/bandpass) to preserve the ratio between upper/lower boundaries.  This performs oddly near Nyquist.
 		oneSided, ///< Based on `bilinear`, adjusting bandwidth to preserve the lower boundary (leaving the upper one loose).
-		vicanek ///< From Martin Vicanek's [Matched Second Order Digital Filters](https://vicanek.de/articles/BiquadFits.pdf).  Currently incomplete, falling back to `oneSided` for the shelving filters.  This takes the poles from the impulse-invariant approach, and then picks the zeros to create a better match.  This means that Nyquist is not 0dB for peak/notch (or -Inf for lowpass), but it is a decent match to the analogue prototype.
+		vicanek ///< From Martin Vicanek's [Matched Second Order Digital Filters](https://vicanek.de/articles/BiquadFits.pdf).  Falls back to `oneSided` for shelf and allpass filters.  This takes the poles from the impulse-invariant approach, and then picks the zeros to create a better match.  This means that Nyquist is not 0dB for peak/notch (or -Inf for lowpass), but it is a decent match to the analogue prototype.
 	};
 	
 	/** A standard biquad.
@@ -44,7 +45,7 @@ namespace filters {
 		Sample a1 = 0, a2 = 0, b0 = 1, b1 = 0, b2 = 0;
 		Sample x1 = 0, x2 = 0, y1 = 0, y2 = 0;
 		
-		enum class Type {highpass, lowpass, highShelf, lowShelf, bandpass, notch, peak};
+		enum class Type {highpass, lowpass, highShelf, lowShelf, bandpass, notch, peak, allpass};
 
 		SIGNALSMITH_INLINE BiquadStatic & configure(Type type, double scaledFreq, double octaves, double sqrtGain, BiquadDesign design) {
 			scaledFreq = std::max(0.0001, std::min(0.4999, scaledFreq));
@@ -176,6 +177,10 @@ namespace filters {
 				a0 = 1 + alpha/A;
 				a1 = b1;
 				a2 = 1 - alpha/A;
+			} else if (type == Type::allpass) {
+				a0 = b2 = 1 + alpha;
+				a1 = b1 = -2*cos_w0;
+				a2 = b0 = 1 - alpha;
 			} else {
 				// reset to neutral
 				a1 = a2 = b1 = b2 = 0;
@@ -286,7 +291,11 @@ namespace filters {
 			double sqrtGain = std::pow(10, db*0.025);
 			return configure(Type::lowShelf, scaledFreq, octaves, sqrtGain, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
-		
+
+		BiquadStatic & allpass(double scaledFreq, double octaves=1, BiquadDesign design=bwDesign) {
+			return configure(Type::allpass, scaledFreq, octaves, 0, design);
+		}
+
 		BiquadStatic & addGain(double factor) {
 			b0 *= factor;
 			b1 *= factor;

@@ -199,13 +199,13 @@ namespace spectral {
 		};
 		std::vector<Sample> timeBuffer;
 
-		void resizeInternal(int newChannels, int windowSize, int newInterval, int historyLength) {
+		void resizeInternal(int newChannels, int windowSize, int newInterval, int historyLength, int zeroPadding) {
 			Super::resize(newChannels,
 				windowSize /* for output summing */
 				+ newInterval /* so we can read `windowSize` ahead (we'll be at most `interval-1` from the most recent block */
 				+ historyLength);
 
-			int fftSize = fft.fastSizeAbove(windowSize);
+			int fftSize = fft.fastSizeAbove(windowSize + zeroPadding);
 			
 			this->channels = newChannels;
 			_windowSize = windowSize;
@@ -236,13 +236,13 @@ namespace spectral {
 
 		STFT() {}
 		/// Parameters passed straight to `.resize()`
-		STFT(int channels, int windowSize, int interval, int historyLength=0) {
-			resize(channels, windowSize, interval, historyLength);
+		STFT(int channels, int windowSize, int interval, int historyLength=0, int zeroPadding=0) {
+			resize(channels, windowSize, interval, historyLength, zeroPadding);
 		}
 
 		/// Sets the channel-count, FFT size and interval.
-		void resize(int channels, int windowSize, int interval, int historyLength=0) {
-			resizeInternal(channels, windowSize, interval, historyLength);
+		void resize(int channels, int windowSize, int interval, int historyLength=0, int zeroPadding=0) {
+			resizeInternal(channels, windowSize, interval, historyLength, zeroPadding);
 		}
 		
 		int windowSize() const {
