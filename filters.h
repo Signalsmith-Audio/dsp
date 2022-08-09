@@ -101,8 +101,8 @@ namespace filters {
 			double w0 = calc.w0;
 			
 			if (design == BiquadDesign::vicanek) {
-				double Q = (type == Type::peak ? 1 : 0.5)/calc.inv2Q;
-				double q = (type == Type::peak ? 0.5 : 1)*calc.inv2Q;
+				double Q = (type == Type::peak ? 0.5*sqrtGain : 0.5)/calc.inv2Q;
+				double q = (type == Type::peak ? 1/sqrtGain : 1)*calc.inv2Q;
 				double expmqw = std::exp(-q*w0);
 				if (q <= 1) {
 					a1 = -2*expmqw*std::cos(std::sqrt(1 - q*q)*w0);
