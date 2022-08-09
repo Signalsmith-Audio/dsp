@@ -41,8 +41,8 @@ namespace delay {
 	*/
 	template<typename Sample>
 	class Buffer {
-		int bufferIndex;
-		int bufferMask;
+		unsigned bufferIndex;
+		unsigned bufferMask;
 		std::vector<Sample> buffer;
 	public:
 		Buffer(int minCapacity=0) {
@@ -59,7 +59,7 @@ namespace delay {
 			int bufferLength = 1;
 			while (bufferLength < minCapacity) bufferLength *= 2;
 			buffer.assign(bufferLength, value);
-			bufferMask = bufferLength - 1;
+			bufferMask = unsigned(bufferLength - 1);
 			bufferIndex = 0;
 		}
 		void reset(Sample value=Sample()) {
@@ -72,10 +72,10 @@ namespace delay {
 			using CBuffer = typename std::conditional<isConst, const Buffer, Buffer>::type;
 			using CSample = typename std::conditional<isConst, const Sample, Sample>::type;
 			CBuffer *buffer = nullptr;
-			int bufferIndex = 0;
+			unsigned bufferIndex = 0;
 		public:
-			View(CBuffer &buffer, int offset=0) : buffer(&buffer), bufferIndex(buffer.bufferIndex + offset) {}
-			View(const View &other, int offset=0) : buffer(other.buffer), bufferIndex(other.bufferIndex + offset) {}
+			View(CBuffer &buffer, int offset=0) : buffer(&buffer), bufferIndex(buffer.bufferIndex + (unsigned)offset) {}
+			View(const View &other, int offset=0) : buffer(other.buffer), bufferIndex(other.bufferIndex + (unsigned)offset) {}
 			View & operator =(const View &other) {
 				buffer = other.buffer;
 				bufferIndex = other.bufferIndex;
@@ -83,10 +83,10 @@ namespace delay {
 			}
 			
 			CSample & operator[](int offset) {
-				return buffer->buffer[(bufferIndex + offset)&buffer->bufferMask];
+				return buffer->buffer[(bufferIndex + (unsigned)offset)&buffer->bufferMask];
 			}
 			const Sample & operator[](int offset) const {
-				return buffer->buffer[(bufferIndex + offset)&buffer->bufferMask];
+				return buffer->buffer[(bufferIndex + (unsigned)offset)&buffer->bufferMask];
 			}
 
 			/// Write data into the buffer
@@ -125,10 +125,10 @@ namespace delay {
 		}
 
 		Sample & operator[](int offset) {
-			return buffer[(bufferIndex + offset)&bufferMask];
+			return buffer[(bufferIndex + (unsigned)offset)&bufferMask];
 		}
 		const Sample & operator[](int offset) const {
-			return buffer[(bufferIndex + offset)&bufferMask];
+			return buffer[(bufferIndex + (unsigned)offset)&bufferMask];
 		}
 
 		/// Write data into the buffer
@@ -151,7 +151,7 @@ namespace delay {
 			return *this;
 		}
 		Buffer & operator +=(int i) {
-			bufferIndex += i;
+			bufferIndex += (unsigned)i;
 			return *this;
 		}
 		Buffer & operator --() {
@@ -159,7 +159,7 @@ namespace delay {
 			return *this;
 		}
 		Buffer & operator -=(int i) {
-			bufferIndex -= i;
+			bufferIndex -= (unsigned)i;
 			return *this;
 		}
 

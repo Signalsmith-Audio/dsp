@@ -261,6 +261,8 @@ namespace filters {
 			return 10*std::log10(energy);
 		}
 
+		/// @name Lowpass
+		/// @{
 		BiquadStatic & lowpass(double scaledFreq, double octaves=defaultBandwidth, BiquadDesign design=BiquadDesign::bilinear) {
 			return configure(Type::lowpass, octaveSpec(scaledFreq, octaves, design), 0, design);
 		}
@@ -271,11 +273,14 @@ namespace filters {
 		void lowpass(double scaledFreq, double octaves, bool correctBandwidth) {
 			lowpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
-		// @deprecated By the time you care about `design`, you should care about the bandwidth
+		/// @deprecated By the time you care about `design`, you should care about the bandwidth
 		BiquadStatic & lowpass(double scaledFreq, BiquadDesign design) {
 			return lowpass(scaledFreq, defaultBandwidth, design);
 		}
+		/// @}
 		
+		/// @name Highpass
+		/// @{
 		BiquadStatic & highpass(double scaledFreq, double octaves=defaultBandwidth, BiquadDesign design=BiquadDesign::bilinear) {
 			return configure(Type::highpass, octaveSpec(scaledFreq, octaves, design), 0, design);
 		}
@@ -286,11 +291,14 @@ namespace filters {
 		void highpass(double scaledFreq, double octaves, bool correctBandwidth) {
 			highpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
-		// @deprecated By the time you care about `design`, you should care about the bandwidth
+		/// @deprecated By the time you care about `design`, you should care about the bandwidth
 		BiquadStatic & highpass(double scaledFreq, BiquadDesign design) {
 			return highpass(scaledFreq, defaultBandwidth, design);
 		}
+		/// @}
 
+		/// @name Bandpass
+		/// @{
 		BiquadStatic & bandpass(double scaledFreq, double octaves=defaultBandwidth, BiquadDesign design=bwDesign) {
 			return configure(Type::bandpass, octaveSpec(scaledFreq, octaves, design), 0, design);
 		}
@@ -301,11 +309,14 @@ namespace filters {
 		void bandpass(double scaledFreq, double octaves, bool correctBandwidth) {
 			bandpass(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
-		// @deprecated By the time you care about `design`, you should care about the bandwidth
+		/// @deprecated By the time you care about `design`, you should care about the bandwidth
 		BiquadStatic & bandpass(double scaledFreq, BiquadDesign design) {
 			return bandpass(scaledFreq, defaultBandwidth, design);
 		}
+		/// @}
 
+		/// @name Notch
+		/// @{
 		BiquadStatic & notch(double scaledFreq, double octaves=defaultBandwidth, BiquadDesign design=bwDesign) {
 			return configure(Type::notch, octaveSpec(scaledFreq, octaves, design), 0, design);
 		}
@@ -316,7 +327,7 @@ namespace filters {
 		void notch(double scaledFreq, double octaves, bool correctBandwidth) {
 			notch(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
-		// @deprecated By the time you care about `design`, you should care about the bandwidth
+		/// @deprecated By the time you care about `design`, you should care about the bandwidth
 		BiquadStatic & notch(double scaledFreq, BiquadDesign design) {
 			return notch(scaledFreq, defaultBandwidth, design);
 		}
@@ -324,7 +335,10 @@ namespace filters {
 		void bandStop(double scaledFreq, double octaves=1, bool correctBandwidth=true) {
 			notch(scaledFreq, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
+		/// @}
 
+		/// @name Peak
+		/// @{
 		BiquadStatic & peak(double scaledFreq, double gain, double octaves=1, BiquadDesign design=bwDesign) {
 			return configure(Type::peak, octaveSpec(scaledFreq, octaves, design), std::sqrt(gain), design);
 		}
@@ -337,11 +351,14 @@ namespace filters {
 		BiquadStatic & peakDbQ(double scaledFreq, double db, double q, BiquadDesign design=bwDesign) {
 			return configure(Type::peak, qSpec(scaledFreq, q, design), dbToSqrtGain(db), design);
 		}
-		// @deprecated By the time you care about `design`, you should care about the bandwidth
+		/// @deprecated By the time you care about `design`, you should care about the bandwidth
 		BiquadStatic & peak(double scaledFreq, double gain, BiquadDesign design) {
 			return peak(scaledFreq, gain, 1, design);
 		}
+		/// @}
 
+		/// @name High shelf
+		/// @{
 		BiquadStatic & highShelf(double scaledFreq, double gain, double octaves=defaultBandwidth, BiquadDesign design=bwDesign) {
 			return configure(Type::highShelf, octaveSpec(scaledFreq, octaves, design), std::sqrt(gain), design);
 		}
@@ -362,7 +379,10 @@ namespace filters {
 		BiquadStatic & highShelfDb(double scaledFreq, double db, double octaves, bool correctBandwidth) {
 			return highShelfDb(scaledFreq, db, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
+		/// @}
 
+		/// @name Low shelf
+		/// @{
 		BiquadStatic & lowShelf(double scaledFreq, double gain, double octaves=2, BiquadDesign design=bwDesign) {
 			return configure(Type::lowShelf, octaveSpec(scaledFreq, octaves, design), std::sqrt(gain), design);
 		}
@@ -383,13 +403,17 @@ namespace filters {
 		BiquadStatic & lowShelfDb(double scaledFreq, double db, double octaves, bool correctBandwidth) {
 			return lowShelfDb(scaledFreq, db, octaves, correctBandwidth ? bwDesign : BiquadDesign::bilinear);
 		}
+		/// @}
 		
+		/// @name Allpass
+		/// @{
 		BiquadStatic & allpass(double scaledFreq, double octaves=1, BiquadDesign design=bwDesign) {
 			return configure(Type::allpass, octaveSpec(scaledFreq, octaves, design), 0, design);
 		}
 		BiquadStatic & allpassQ(double scaledFreq, double q, BiquadDesign design=bwDesign) {
 			return configure(Type::allpass, qSpec(scaledFreq, q, design), 0, design);
 		}
+		/// @}
 
 		BiquadStatic & addGain(double factor) {
 			b0 *= factor;

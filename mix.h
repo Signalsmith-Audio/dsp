@@ -38,7 +38,7 @@ namespace mix {
 		/// Scaling factor applied to make it orthogonal
 		static Sample scalingFactor() {
 			/// TODO: test for C++20, or whatever makes this constexpr.  Maybe a `#define` in `common.h`?
-			return std::sqrt(Sample(1)/size);
+			return std::sqrt(Sample(1)/(size ? size : 1));
 		}
 
 		/// Skips the scaling, so it's a matrix full of `1`s
@@ -77,7 +77,7 @@ namespace mix {
 
 		/// Scaling factor applied to make it orthogonal
 		Sample scalingFactor() const {
-			return std::sqrt(Sample(1)/size);
+			return std::sqrt(Sample(1)/(size ? size : 1));
 		}
 
 		/// Skips the scaling, so it's a matrix full of `1`s
