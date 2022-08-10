@@ -55,10 +55,10 @@ namespace filters {
 			double inv2Q;
 			
 			FreqSpec(double scaledFreq, BiquadDesign design) {
-				this->scaledFreq = std::max(0.0001, std::min(0.4999, scaledFreq));
+				this->scaledFreq = scaledFreq = std::max(1e-6, std::min(0.4999, scaledFreq));
 				if (design == BiquadDesign::cookbook) {
 					// Falls apart a bit near Nyquist
-					this->scaledFreq = std::min(0.45, scaledFreq);
+					this->scaledFreq = scaledFreq = std::min(0.45, scaledFreq);
 				}
 				w0 = 2*M_PI*scaledFreq;
 				cosW0 = std::cos(w0);
@@ -101,6 +101,9 @@ namespace filters {
 			double w0 = calc.w0;
 			
 			if (design == BiquadDesign::vicanek) {
+				if (type == Type::notch) { // Heuristic for notches near Nyquist
+					calc.inv2Q *= (1 - calc.scaledFreq*0.5);
+				}
 				double Q = (type == Type::peak ? 0.5*sqrtGain : 0.5)/calc.inv2Q;
 				double q = (type == Type::peak ? 1/sqrtGain : 1)*calc.inv2Q;
 				double expmqw = std::exp(-q*w0);
