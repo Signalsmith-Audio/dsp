@@ -254,13 +254,13 @@ namespace filters {
 		
 		std::complex<Sample> response(Sample scaledFreq) const {
 			Sample w = scaledFreq*Sample(2*M_PI);
-			std::complex<Sample> z = {std::cos(w), -std::sin(w)}, z2 = z*z;
-			return (b0 + z*b1 + z2*b2)/(Sample(1) + z*a1 + z2*a2);
+			std::complex<Sample> invZ = {std::cos(w), -std::sin(w)}, invZ2 = invZ*invZ;
+			return (b0 + invZ*b1 + invZ2*b2)/(Sample(1) + invZ*a1 + invZ2*a2);
 		}
 		Sample responseDb(Sample scaledFreq) const {
 			Sample w = scaledFreq*Sample(2*M_PI);
-			std::complex<Sample> z = {std::cos(w), -std::sin(w)}, z2 = z*z;
-			Sample energy = std::norm(b0 + z*b1 + z2*b2)/std::norm(Sample(1) + z*a1 + z2*a2);
+			std::complex<Sample> invZ = {std::cos(w), -std::sin(w)}, invZ2 = invZ*invZ;
+			Sample energy = std::norm(b0 + invZ*b1 + invZ2*b2)/std::norm(Sample(1) + invZ*a1 + invZ2*a2);
 			return 10*std::log10(energy);
 		}
 
