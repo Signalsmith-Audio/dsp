@@ -175,10 +175,10 @@ namespace spectral {
 			MultiSpectrum() : MultiSpectrum(0, 0) {}
 			MultiSpectrum(int channels, int bands) : channels(channels), stride(bands), buffer(channels*bands, 0) {}
 			
-			void resize(int channels, int bands) {
-				this->channels = channels;
-				this->stride = bands;
-				buffer.assign(channels*bands, 0);
+			void resize(int nChannels, int nBands) {
+				channels = nChannels;
+				stride = nBands;
+				buffer.assign(channels*stride, 0);
 			}
 			
 			void reset() {
@@ -212,13 +212,18 @@ namespace spectral {
 			this->_fftSize = fftSize;
 			this->_interval = newInterval;
 			validUntilIndex = -1;
-			
-			using Kaiser = ::signalsmith::windows::Kaiser;
 
-			/// Roughly optimal Kaiser for STFT analysis (forced to perfect reconstruction)
 			auto &window = fft.setSizeWindow(fftSize);
-			auto kaiser = Kaiser::withBandwidth(windowSize/(double)_interval, true);
-			kaiser.fill(window, windowSize);
+			if (windowShape == Window::kaiser) {
+				using Kaiser = ::signalsmith::windows::Kaiser;
+				/// Roughly optimal Kaiser for STFT analysis (forced to perfect reconstruction)
+				auto kaiser = Kaiser::withBandwidth(windowSize/double(_interval), true);
+				kaiser.fill(window, windowSize);
+			} else {
+				using Confined = ::signalsmith::windows::ApproximateConfinedGaussian;
+				auto confined = Confined::withBandwidth(windowSize/double(_interval));
+				confined.fill(window, windowSize);
+			}
 			::signalsmith::windows::forcePerfectReconstruction(window, windowSize, _interval);
 			
 			// TODO: fill extra bits of an input buffer with NaN/Infinity, to break this, and then fix by adding zero-padding to WindowedFFT (as opposed to zero-valued window sections)
@@ -230,10 +235,19 @@ namespace spectral {
 			timeBuffer.resize(fftSize);
 		}
 	public:
+		/** Swaps between the default (Kaiser) shape and Approximate Confined Gaussian (ACG).
+		\diagram{stft-windows.svg,Default (Kaiser) windows and partial cumulative sum}
+		The ACG has better rolloff since its edges go to 0:
+		\diagram{stft-windows-acg.svg,ACG windows and partial cumulative sum}
+		However, it generally has worse performance in terms of total sidelobe energy, affecting worst-case aliasing levels for (most) higher overlap ratios:
+		\diagram{stft-aliasing-simulated-acg.svg,Simulated bad-case aliasing for ACG windows - compare with above}*/
+		enum class Window {kaiser, acg};
+		Window windowShape = Window::kaiser;
+		
 		using Spectrum = MultiSpectrum;
 		Spectrum spectrum;
 		WindowedFFT<Sample> fft;
-
+		
 		STFT() {}
 		/// Parameters passed straight to `.resize()`
 		STFT(int channels, int windowSize, int interval, int historyLength=0, int zeroPadding=0) {
@@ -241,8 +255,8 @@ namespace spectral {
 		}
 
 		/// Sets the channel-count, FFT size and interval.
-		void resize(int channels, int windowSize, int interval, int historyLength=0, int zeroPadding=0) {
-			resizeInternal(channels, windowSize, interval, historyLength, zeroPadding);
+		void resize(int nChannels, int windowSize, int interval, int historyLength=0, int zeroPadding=0) {
+			resizeInternal(nChannels, windowSize, interval, historyLength, zeroPadding);
 		}
 		
 		int windowSize() const {
@@ -295,14 +309,14 @@ namespace spectral {
 					auto channel = output[c];
 
 					// Clear out the future sum, a window-length and an interval ahead
-					for (int i = _windowSize; i < _windowSize + _interval; ++i) {
-						channel[i] = 0;
+					for (int wi = _windowSize; wi < _windowSize + _interval; ++wi) {
+						channel[wi] = 0;
 					}
 
 					// Add in the IFFT'd result
 					fft.ifft(spectrum[c], timeBuffer);
-					for (int i = 0; i < _windowSize; ++i) {
-						channel[i] += timeBuffer[i];
+					for (int wi = 0; wi < _windowSize; ++wi) {
+						channel[wi] += timeBuffer[wi];
 					}
 				}
 				validUntilIndex += _interval;
