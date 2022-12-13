@@ -154,8 +154,6 @@ namespace rates {
 				Sample v2 = sum;
 				Sample v = (v1 + v2)*Sample(0.5);
 				data[i] = v;
-				// DEBUG: flip polarity
-				data[i] *= -1;
 			}
 			// Copy the end of the buffer back to the beginning
 			for (int i = 0; i < kernelLength*2; ++i) {
