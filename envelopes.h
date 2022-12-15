@@ -1,7 +1,7 @@
+#include "./common.h"
+
 #ifndef SIGNALSMITH_DSP_ENVELOPES_H
 #define SIGNALSMITH_DSP_ENVELOPES_H
-
-#include "./common.h"
 
 #include <cmath>
 #include <random>

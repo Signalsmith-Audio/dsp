@@ -1,7 +1,8 @@
+#include "./common.h"
+
 #ifndef SIGNALSMITH_DSP_SPECTRAL_H
 #define SIGNALSMITH_DSP_SPECTRAL_H
 
-#include "./common.h"
 #include "./perf.h"
 #include "./fft.h"
 #include "./windows.h"

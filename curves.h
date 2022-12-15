@@ -1,7 +1,7 @@
+#include "./common.h"
+
 #ifndef SIGNALSMITH_DSP_CURVES_H
 #define SIGNALSMITH_DSP_CURVES_H
-
-#include "./common.h"
 
 #include <vector>
 #include <algorithm> // std::stable_sort

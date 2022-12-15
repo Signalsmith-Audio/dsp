@@ -1,7 +1,7 @@
+#include "./common.h"
+
 #ifndef SIGNALSMITH_DSP_WINDOWS_H
 #define SIGNALSMITH_DSP_WINDOWS_H
-
-#include "./common.h"
 
 #include <cmath>
 #include <algorithm>
