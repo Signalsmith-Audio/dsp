@@ -29,6 +29,10 @@ namespace curves {
 			return a0 + x*a1;
 		}
 		
+		Sample dx() const {
+			return a1;
+		}
+		
 		/// Returns the inverse map (with some numerical error)
 		Linear inverse() const {
 			Sample invA1 = 1/a1;
@@ -178,16 +182,24 @@ namespace curves {
 		}
 		
 		/// Reads a value out from the curve.
-		Sample operator ()(Sample x) const {
+		Sample operator()(Sample x) const {
 			if (x <= first.x) return first.y;
 			if (x >= last.x) return last.y;
-			size_t index = 1;
-			while (index < _segments.size() && _segments[index].start() <= x) {
-				++index;
+			
+			// Binary search
+			size_t low = 0, high = _segments.size();
+			while (true) {
+				size_t mid = (low + high)/2;
+				if (low == mid) break;
+				if (_segments[mid].start() <= x) {
+					low = mid;
+				} else {
+					high = mid;
+				}
 			}
-			return _segments[index - 1](x);
+			return _segments[low](x);
 		}
-		
+
 		using Segment = Cubic<Sample>;
 		const std::vector<Segment> & segments() const {
 			return _segments;
