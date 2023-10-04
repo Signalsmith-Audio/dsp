@@ -199,6 +199,15 @@ namespace curves {
 			}
 			return _segments[low](x);
 		}
+		
+		CubicSegmentCurve dx() const {
+			CubicSegmentCurve result{*this};
+			result.first.y = result.last.y = 0;
+			for (auto &s : result._segments) {
+				s = s.dx();
+			}
+			return result;
+		}
 
 		using Segment = Cubic<Sample>;
 		const std::vector<Segment> & segments() const {

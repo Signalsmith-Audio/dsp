@@ -106,7 +106,7 @@ namespace windows {
 			return bw;
 		}
 		/** @brief Peak ratio (in dB) between side-lobes and the main lobe.
-			\diagram{windows-acg-sidelobe-peaks.svg,Measured main/side lobe peak ratio.  You can see that the heuristic improves performance, except in the bandwidth range 1-2 where peak ratio was sacrificed to improve total energy ratio.}
+			\diagram{windows-kaiser-sidelobe-peaks.svg,Measured main/side lobe peak ratio.  You can see that the heuristic improves performance, except in the bandwidth range 1-2 where peak ratio was sacrificed to improve total energy ratio.}
 			This function uses an approximation which is accurate to ±0.5dB for 2 ⩽ bandwidth ≤ 9, or 0.5 ⩽ bandwidth ≤ 9 when `heuristicOptimal`is enabled.
 		*/
 		static double bandwidthToPeakDb(double bandwidth, bool heuristicOptimal=false) {
@@ -153,7 +153,7 @@ namespace windows {
 	
 		/// Fills an arbitrary container with a Kaiser window
 		template<typename Data>
-		void fill(Data &data, int size) const {
+		void fill(Data &&data, int size) const {
 			double invSize = 1.0/size;
 			for (int i = 0; i < size; ++i) {
 				double r = (2*i + 1)*invSize - 1;
@@ -185,7 +185,7 @@ namespace windows {
 	
 		/// Fills an arbitrary container
 		template<typename Data>
-		void fill(Data &data, int size) const {
+		void fill(Data &&data, int size) const {
 			double invSize = 1.0/size;
 			double offsetScale = gaussian(1)/(gaussian(3) + gaussian(-1));
 			double norm = 1/(gaussian(0) - 2*offsetScale*(gaussian(2)));
@@ -201,7 +201,7 @@ namespace windows {
 	\diagram{kaiser-windows-heuristic-pr.svg,Note the lower overall energy\, and the pointy top for 2x bandwidth. Spectral performance is about the same\, though.}
 	*/
 	template<typename Data>
-	void forcePerfectReconstruction(Data &data, int windowLength, int interval) {
+	void forcePerfectReconstruction(Data &&data, int windowLength, int interval) {
 		for (int i = 0; i < interval; ++i) {
 			double sum2 = 0;
 			for (int index = i; index < windowLength; index += interval) {
