@@ -274,10 +274,11 @@ namespace spectral {
 			return fft.window();
 		}
 		/// Calculates the effective window for the partially-summed future output (relative to the most recent block)
-		std::vector<Sample> partialSumWindow() const {
+		std::vector<Sample> partialSumWindow(bool includeLatestBlock=true) const {
 			const auto &w = window();
 			std::vector<Sample> result(_windowSize, 0);
-			for (int offset = 0; offset < _windowSize; offset += _interval) {
+			int firstOffset = (includeLatestBlock ? 0 : _interval);
+			for (int offset = firstOffset; offset < _windowSize; offset += _interval) {
 				for (int i = 0; i < _windowSize - offset; ++i) {
 					Sample value = w[i + offset];
 					result[i] += value*value;
