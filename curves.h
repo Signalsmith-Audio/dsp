@@ -222,6 +222,21 @@ namespace curves {
 		Sample a, b, c, d; // (a + bx)/(c + dx)
 		Reciprocal(Sample a, Sample b, Sample c, Sample d) : a(a), b(b), c(c), d(d) {}
 	public:
+		/** Decent approximation to the Bark scale
+ 
+		The Bark index goes from 1-24, but this map is valid from approximately 0.25 - 27.5.
+		You can get the bandwidth by `barkScale.dx(barkIndex)`.
+		\diagram{curves-reciprocal-approx-bark.svg}*/
+		static Reciprocal<Sample> barkScale() {
+			return {1, 10, 24, 60, 1170, 13500};
+		}
+		/// Returns a map from 0-1 to the given (non-negative) Hz range.
+		static Reciprocal<Sample> barkRange(Sample lowHz, Sample highHz) {
+			Reciprocal bark = barkScale();
+			Sample lowBark = bark.inverse(lowHz), highBark = bark.inverse(highHz);
+			return Reciprocal(lowBark, (lowBark + highBark)/2, highBark).then(bark);
+		}
+
 		Reciprocal() : Reciprocal(0, 0.5, 1) {}
 		/// If no x-range given, default to the unit range
 		Reciprocal(Sample y0, Sample y1, Sample y2) : Reciprocal(0, 0.5, 1, y0, y1, y2) {}
@@ -243,13 +258,17 @@ namespace curves {
 		Sample inverse(Sample y) const {
 			return (c*y - a)/(b - d*y);
 		}
+		Sample dx(Sample x) const {
+			Sample l = (c + d*x);
+			return (b*c - a*d)/(l*l);
+		}
 		
 		/// Combine two `Reciprocal`s together in sequence
 		Reciprocal then(const Reciprocal &other) const {
 			return Reciprocal(other.a*c + other.b*a, other.a*d + other.b*b, other.c*c + other.d*a, other.c*d + other.d*b);
 		}
 	};
-
+	
 /** @} */
 }} // namespace
 #endif // include guard
