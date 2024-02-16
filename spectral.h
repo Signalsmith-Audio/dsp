@@ -346,6 +346,10 @@ namespace spectral {
 		void ensureValid(AnalysisFn fn) {
 			return ensureValid(0, fn);
 		}
+		/// Returns the next invalid index (a.k.a. the index of the next block)
+		int nextInvalid() const {
+			return validUntilIndex + 1;
+		}
 		
 		/** Analyse a multi-channel input, for any type where `data[channel][index]` returns samples
  
