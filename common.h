@@ -43,9 +43,5 @@ namespace signalsmith {
 } // signalsmith::
 #else
 // If we've already included it, check it's the same version
-<<<<<<< HEAD
-static_assert(SIGNALSMITH_DSP_VERSION_MAJOR == 1 && SIGNALSMITH_DSP_VERSION_MINOR == 6 && SIGNALSMITH_DSP_VERSION_PATCH == 1, "multiple versions of the Signalsmith DSP library");
-=======
 static_assert(SIGNALSMITH_DSP_VERSION_MAJOR == 1 && SIGNALSMITH_DSP_VERSION_MINOR == 6 && SIGNALSMITH_DSP_VERSION_PATCH == 2, "multiple versions of the Signalsmith DSP library");
->>>>>>> 4d2cfe2 (Release v1.6.2)
 #endif // include guard
