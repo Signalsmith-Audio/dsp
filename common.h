@@ -18,9 +18,9 @@ namespace signalsmith {
 	*/
 
 #define SIGNALSMITH_DSP_VERSION_MAJOR 1
-#define SIGNALSMITH_DSP_VERSION_MINOR 6
-#define SIGNALSMITH_DSP_VERSION_PATCH 3
-#define SIGNALSMITH_DSP_VERSION_STRING "1.6.3"
+#define SIGNALSMITH_DSP_VERSION_MINOR 7
+#define SIGNALSMITH_DSP_VERSION_PATCH 0
+#define SIGNALSMITH_DSP_VERSION_STRING "1.7.0"
 
 	/** Version compatability check.
 	\code{.cpp}
@@ -43,5 +43,5 @@ namespace signalsmith {
 } // signalsmith::
 #else
 // If we've already included it, check it's the same version
-static_assert(SIGNALSMITH_DSP_VERSION_MAJOR == 1 && SIGNALSMITH_DSP_VERSION_MINOR == 6 && SIGNALSMITH_DSP_VERSION_PATCH == 3, "multiple versions of the Signalsmith DSP library");
+static_assert(SIGNALSMITH_DSP_VERSION_MAJOR == 1 && SIGNALSMITH_DSP_VERSION_MINOR == 7 && SIGNALSMITH_DSP_VERSION_PATCH == 0, "multiple versions of the Signalsmith DSP library");
 #endif // include guard
