@@ -441,8 +441,7 @@ namespace signalsmith { namespace fft {
 					modifiedRotations[i] = {std::cos(rotPhase), std::sin(rotPhase)};
 				}
 			}
-			
-			return complexFft.setSize(size/2);
+			return complexFft.setSize(size/2)*2;
 		}
 		size_t setFastSizeAbove(size_t size) {
 			return setSize(fastSizeAbove(size));

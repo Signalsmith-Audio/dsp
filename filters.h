@@ -254,6 +254,14 @@ namespace filters {
 			x1 = x2 = y1 = y2 = 0;
 		}
 		
+		void copyFrom(const BiquadStatic &other) {
+			b0 = other.b0;
+			b1 = other.b1;
+			b2 = other.b2;
+			a1 = other.a1;
+			a2 = other.a2;
+		}
+		
 		std::complex<Sample> response(Sample scaledFreq) const {
 			Sample w = scaledFreq*Sample(2*M_PI);
 			std::complex<Sample> invZ = {std::cos(w), -std::sin(w)}, invZ2 = invZ*invZ;
