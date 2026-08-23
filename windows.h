@@ -172,6 +172,8 @@ namespace windows {
 		double gaussian(double x) const {
 			return std::exp(-x*x*gaussianFactor);
 		}
+
+		double offsetScale, norm;
 	public:
 		/// Heuristic map from bandwidth to the appropriately-optimal sigma
 		static double bandwidthToSigma(double bandwidth) {
@@ -181,17 +183,19 @@ namespace windows {
 			return ApproximateConfinedGaussian(bandwidthToSigma(bandwidth));
 		}
 
-		ApproximateConfinedGaussian(double sigma) : gaussianFactor(0.0625/(sigma*sigma)) {}
+		ApproximateConfinedGaussian(double sigma) : gaussianFactor(0.0625/(sigma*sigma)), offsetScale(gaussian(1)/(gaussian(3) + gaussian(-1))), norm(1/(gaussian(0) - 2*offsetScale*(gaussian(2)))) {}
+		
+		double operator()(double x) const {
+			double r = 2*x - 1;
+			return norm*(gaussian(r) - offsetScale*(gaussian(r - 2) + gaussian(r + 2)));
+		}
 	
 		/// Fills an arbitrary container
 		template<typename Data>
 		void fill(Data &&data, int size) const {
 			double invSize = 1.0/size;
-			double offsetScale = gaussian(1)/(gaussian(3) + gaussian(-1));
-			double norm = 1/(gaussian(0) - 2*offsetScale*(gaussian(2)));
 			for (int i = 0; i < size; ++i) {
-				double r = (2*i + 1)*invSize - 1;
-				data[i] = norm*(gaussian(r) - offsetScale*(gaussian(r - 2) + gaussian(r + 2)));
+				data[i] = (*this)((i + 0.5)*invSize);
 			}
 		}
 	};
