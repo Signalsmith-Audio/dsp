@@ -338,12 +338,19 @@ namespace curves {
 		/// If no x-range given, default to the unit range
 		Reciprocal(Sample y0, Sample y1, Sample y2) : Reciprocal(0, 0.5, 1, y0, y1, y2) {}
 		Reciprocal(Sample x0, Sample x1, Sample x2, Sample y0, Sample y1, Sample y2) {
-			Sample kx = (x1 - x0)/(x2 - x1);
-			Sample ky = (y1 - y0)/(y2 - y1);
-			a = (kx*x2)*y0 - (ky*x0)*y2;
-			b = ky*y2 - kx*y0;
-			c = kx*x2 - ky*x0;
-			d = ky - kx;
+			if (y1 == y2 || x1 == x2) {
+				// Make it flat, although not invertible
+				a = y1;
+				c = 1;
+				b = d = 0;
+			} else {
+				Sample kx = (x1 - x0)/(x2 - x1);
+				Sample ky = (y1 - y0)/(y2 - y1);
+				a = (kx*x2)*y0 - (ky*x0)*y2;
+				b = ky*y2 - kx*y0;
+				c = kx*x2 - ky*x0;
+				d = ky - kx;
+			}
 		}
 
 		Sample operator ()(double x) const {
