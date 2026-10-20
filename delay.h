@@ -43,7 +43,7 @@ namespace delay {
 	class Buffer {
 		unsigned bufferIndex;
 		unsigned bufferMask;
-		std::vector<Sample> buffer;
+		SIGNALSMITH_VECTOR(Sample) buffer;
 	public:
 		Buffer(int minCapacity=0) {
 			resize(minCapacity);
@@ -476,7 +476,7 @@ namespace delay {
 		static constexpr Sample latency = minimumPhase ? 0 : (n*Sample(0.5) - 1);
 
 		int subSampleSteps;
-		std::vector<Sample> coefficients;
+		SIGNALSMITH_VECTOR(Sample) coefficients;
 		
 		InterpolatorKaiserSincN() : InterpolatorKaiserSincN(0.5 - 0.45/std::sqrt(n)) {}
 		InterpolatorKaiserSincN(double passFreq) : InterpolatorKaiserSincN(passFreq, 1 - passFreq) {}
@@ -487,7 +487,7 @@ namespace delay {
 			double sincScale = M_PI*(passFreq + stopFreq);
 
 			double centreIndex = n*subSampleSteps*0.5, scaleFactor = 1.0/subSampleSteps;
-			std::vector<Sample> windowedSinc(subSampleSteps*n + 1);
+			SIGNALSMITH_VECTOR(Sample) windowedSinc(subSampleSteps*n + 1);
 			
 			::signalsmith::windows::Kaiser::withBandwidth(kaiserBandwidth, false).fill(windowedSinc, windowedSinc.size());
 
@@ -506,8 +506,8 @@ namespace delay {
 			if (minimumPhase) {
 				signalsmith::fft::FFT<Sample> fft(windowedSinc.size()*2, 1);
 				windowedSinc.resize(fft.size(), 0);
-				std::vector<std::complex<Sample>> spectrum(fft.size());
-				std::vector<std::complex<Sample>> cepstrum(fft.size());
+				SIGNALSMITH_VECTOR(std::complex<Sample>) spectrum(fft.size());
+				SIGNALSMITH_VECTOR(std::complex<Sample>) cepstrum(fft.size());
 				fft.fft(windowedSinc, spectrum);
 				for (size_t i = 0; i < fft.size(); ++i) {
 					spectrum[i] = std::log(std::abs(spectrum[i]) + 1e-30);

@@ -9,6 +9,10 @@
 #define M_PI 3.14159265358979323846264338327950288
 #endif
 
+#ifndef SIGNALSMITH_VECTOR
+#	define SIGNALSMITH_VECTOR(T) std::vector<T>
+#endif
+
 namespace signalsmith {
 	/**	@defgroup Common Common
 		@brief Definitions and helper classes used by the rest of the library

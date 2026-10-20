@@ -31,8 +31,8 @@ namespace spectral {
 		using Complex = std::complex<Sample>;
 		MRFFT mrfft{2};
 
-		std::vector<Sample> fftWindow;
-		std::vector<Sample> timeBuffer;
+		SIGNALSMITH_VECTOR(Sample) fftWindow;
+		SIGNALSMITH_VECTOR(Sample) timeBuffer;
 		int offsetSamples = 0;
 	public:
 		/// Returns a fast FFT size <= `size`
@@ -54,7 +54,7 @@ namespace spectral {
 		}
 
 		/// Sets the size, returning the window for modification (initially all 1s)
-		std::vector<Sample> & setSizeWindow(int size, int rotateSamples=0) {
+		SIGNALSMITH_VECTOR(Sample) & setSizeWindow(int size, int rotateSamples=0) {
 			mrfft.setSize(size);
 			fftWindow.assign(size, 1);
 			timeBuffer.resize(size);
@@ -82,7 +82,7 @@ namespace spectral {
 			}, Sample(0.5), rotateSamples);
 		}
 
-		const std::vector<Sample> & window() const {
+		const SIGNALSMITH_VECTOR(Sample) & window() const {
 			return this->fftWindow;
 		}
 		int size() const {
@@ -179,7 +179,7 @@ namespace spectral {
 
 		class MultiSpectrum {
 			int channels, stride;
-			std::vector<Complex> buffer;
+			SIGNALSMITH_VECTOR(Complex) buffer;
 		public:
 			MultiSpectrum() : MultiSpectrum(0, 0) {}
 			MultiSpectrum(int channels, int bands) : channels(channels), stride(bands), buffer(channels*bands, 0) {}
@@ -206,7 +206,7 @@ namespace spectral {
 				return buffer.data() + channel*stride;
 			}
 		};
-		std::vector<Sample> timeBuffer;
+		SIGNALSMITH_VECTOR(Sample) timeBuffer;
 
 		bool rotate = false;
 		void resizeInternal(int newChannels, int windowSize, int newInterval, int historyLength, int zeroPadding) {
@@ -295,9 +295,9 @@ namespace spectral {
 			return fft.window();
 		}
 		/// Calculates the effective window for the partially-summed future output (relative to the most recent block)
-		std::vector<Sample> partialSumWindow(bool includeLatestBlock=true) const {
+		SIGNALSMITH_VECTOR(Sample) partialSumWindow(bool includeLatestBlock=true) const {
 			const auto &w = window();
-			std::vector<Sample> result(_windowSize, 0);
+			SIGNALSMITH_VECTOR(Sample) result(_windowSize, 0);
 			int firstOffset = (includeLatestBlock ? 0 : _interval);
 			for (int offset = firstOffset; offset < _windowSize; offset += _interval) {
 				for (int i = 0; i < _windowSize - offset; ++i) {

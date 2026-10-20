@@ -174,9 +174,9 @@ namespace rates {
 		int oneWayLatency, kernelLength;
 		int channels;
 		int stride, inputStride;
-		std::vector<Sample> inputBuffer;
-		std::vector<Sample> halfSampleKernel;
-		std::vector<Sample> buffer;
+		SIGNALSMITH_VECTOR(Sample) inputBuffer;
+		SIGNALSMITH_VECTOR(Sample) halfSampleKernel;
+		SIGNALSMITH_VECTOR(Sample) buffer;
 	};
 
 /** @} */

@@ -157,10 +157,10 @@ namespace curves {
 				return x < other.x;
 			}
 		};
-		std::vector<Point> points;
+		SIGNALSMITH_VECTOR(Point) points;
 		Point first{0, 0}, last{0, 0};
 		
-		std::vector<Cubic<Sample>> _segments{1};
+		SIGNALSMITH_VECTOR(Cubic<Sample>) _segments{1};
 		// Not public because it's only valid inside the bounds
 		const Cubic<Sample> & findSegment(Sample x) const {
 			// Binary search
@@ -304,10 +304,10 @@ namespace curves {
 		}
 
 		using Segment = Cubic<Sample>;
-		std::vector<Segment> & segments() {
+		SIGNALSMITH_VECTOR(Segment) & segments() {
 			return _segments;
 		}
-		const std::vector<Segment> & segments() const {
+		const SIGNALSMITH_VECTOR(Segment) & segments() const {
 			return _segments;
 		}
 	};

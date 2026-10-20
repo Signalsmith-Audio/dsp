@@ -79,7 +79,7 @@ namespace signalsmith { namespace fft {
 	class FFT {
 		using complex = std::complex<V>;
 		size_t _size;
-		std::vector<complex> workingVector;
+		SIGNALSMITH_VECTOR(complex) workingVector;
 		
 		enum class StepType {
 			generic, step2, step3, step4
@@ -92,12 +92,12 @@ namespace signalsmith { namespace fft {
 			size_t outerRepeats;
 			size_t twiddleIndex;
 		};
-		std::vector<size_t> factors;
-		std::vector<Step> plan;
-		std::vector<complex> twiddleVector;
+		SIGNALSMITH_VECTOR(size_t) factors;
+		SIGNALSMITH_VECTOR(Step) plan;
+		SIGNALSMITH_VECTOR(complex) twiddleVector;
 		
 		struct PermutationPair {size_t from, to;};
-		std::vector<PermutationPair> permutation;
+		SIGNALSMITH_VECTOR(PermutationPair) permutation;
 		
 		void addPlanSteps(size_t factorIndex, size_t start, size_t length, size_t repeats) {
 			if (factorIndex >= factors.size()) return;
@@ -406,9 +406,9 @@ namespace signalsmith { namespace fft {
 		static constexpr bool modified = (optionFlags&FFTOptions::halfFreqShift);
 
 		using complex = std::complex<V>;
-		std::vector<complex> complexBuffer1, complexBuffer2;
-		std::vector<complex> twiddlesMinusI;
-		std::vector<complex> modifiedRotations;
+		SIGNALSMITH_VECTOR(complex) complexBuffer1, complexBuffer2;
+		SIGNALSMITH_VECTOR(complex) twiddlesMinusI;
+		SIGNALSMITH_VECTOR(complex) modifiedRotations;
 		FFT<V> complexFft;
 	public:
 		static size_t fastSizeAbove(size_t size) {
